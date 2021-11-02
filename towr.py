@@ -53,8 +53,8 @@ OPERATION_CONVERTER = {
         '*'         : OperationType.MULTIPLY,
         '^'         : OperationType.PRINT,
         '~'         : OperationType.SWAP,
-        '@m'        : OperationType.WRITE_MEM, 
-        '!m'        : OperationType.RET_MEM,
+        '!m'        : OperationType.WRITE_MEM, 
+        '@m'        : OperationType.RET_MEM,
     },
 }
 
@@ -76,10 +76,14 @@ def in_converter(token: str) -> Union[Operation, None]:
     return None
 
 
-def load_variable_to_stack(stack: list[int], vars: dict[str, int], memory: list[bytearray], var_name: str) -> None:
-    val_bytearr = memory[vars[var_name]]
-    val_int = int.from_bytes(bytes(val_bytearr), 'big')
-    stack.append(val_int)
+def load_variable_to_stack(stack: list[int], vars: dict[str, int], memory: list[bytearray], var_name: str, is_ref: bool=False) -> None:
+    val: int
+    if not is_ref:
+        val_bytearr = memory[vars[var_name]]
+        val = int.from_bytes(bytes(val_bytearr), 'big')
+    else:
+        val = vars[var_name]
+    stack.append(val)
 
 def parse_token(stack: list[int], vars: dict[str, int], memory: list[bytearray], tokens: list[str], token: str, i: int) -> int:
     ret_val: int = 1
@@ -158,14 +162,23 @@ def parse_token(stack: list[int], vars: dict[str, int], memory: list[bytearray],
             stack.append(b)
             stack.append(a)
         elif operation.type == OperationType.WRITE_MEM:
-            assert False, 'TODO: not implemented'
+            if len(stack) < 2:
+                assert False, '`@m` requires 2 elements on the stack'
+            operand = stack.pop()
+            ref = stack.pop()
+            memory[ref] = bytearray(operand.to_bytes(8, 'big'))
+            
+
         elif operation.type == OperationType.RET_MEM:
             assert False, 'TODO: not implemented'
         else:
             assert False, 'impossible, something wrong in `in_converter`'
 
-    elif token in vars:
-        load_variable_to_stack(stack, vars, memory, token)
+    elif token in vars or (token.startswith('&') and token[1:] in vars):
+        is_ref = token.startswith('&') and token[1:] in vars
+        if is_ref:
+            token = token[1:]
+        load_variable_to_stack(stack, vars, memory, token, is_ref=is_ref)
 
     else:
         assert False, f'Token {token!r} not recognized'
