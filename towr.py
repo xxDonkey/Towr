@@ -77,10 +77,9 @@ def in_converter(token: str) -> Union[Operation, None]:
 
 
 def load_variable_to_stack(stack: list[int], vars: dict[str, int], memory: list[bytearray], var_name: str) -> None:
-    mem_idx = memory[vars[var_name]]
-    print(mem_idx)
-
-    assert False, 'load_variable_to_stack unimplemented'
+    val_bytearr = memory[vars[var_name]]
+    val_int = int.from_bytes(bytes(val_bytearr), 'big')
+    stack.append(val_int)
 
 def parse_token(stack: list[int], vars: dict[str, int], memory: list[bytearray], tokens: list[str], token: str, i: int) -> int:
     ret_val: int = 1
@@ -101,13 +100,12 @@ def parse_token(stack: list[int], vars: dict[str, int], memory: list[bytearray],
             if var_name in vars:
                 assert False, 'trying to initialize an existing variable'
 
-            ltokens = rtokens[i + 1:rtokens.index('end')]
+            ltokens = rtokens[1:rtokens.index('end')]
             lstack: list[int] = []
 
             for ltoken in ltokens:
                 if ltoken in vars:
-                    var_contents = vars[ltoken]
-                    lstack.append(var_contents)
+                    load_variable_to_stack(lstack, vars, memory, ltoken)
 
                 elif (operation := in_converter(ltoken)):
                     if operation.type == OperationType.PUSH_INT:
