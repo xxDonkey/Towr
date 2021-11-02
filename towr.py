@@ -132,10 +132,8 @@ def parse_token(stack: list[int], vars: dict[str, int], memory: list[bytearray],
             lval = lstack.pop()
             memory.append(bytearray(lval.to_bytes(8, 'big')))
             ret_val += len(ltokens) + 2
-
-            #assert False, 'LET unimplemented'
         elif keyword == Keyword.END:
-            assert False, 'END unimplemented'
+            assert False, 'impossible, no implementation of `END`'
 
     elif token in INTRINSICS:
         assert False, 'TODO: intrinsics not implemented'
