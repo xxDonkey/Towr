@@ -75,9 +75,12 @@ def in_converter(token: str) -> Union[Operation, None]:
 
     return None
 
+
 def load_variable_to_stack(stack: list[int], vars: dict[str, int], memory: list[bytearray], var_name: str) -> None:
     mem_idx = memory[vars[var_name]]
     print(mem_idx)
+
+    assert False, 'load_variable_to_stack unimplemented'
 
 def parse_token(stack: list[int], vars: dict[str, int], memory: list[bytearray], tokens: list[str], token: str, i: int) -> int:
     ret_val: int = 1
