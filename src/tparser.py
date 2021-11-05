@@ -102,7 +102,6 @@ def program_from_tokens(tokens: list[Token]) -> Program:
                 type=OperationType.EQUALS_STACK,
                 operand=0
             ))
-            assert False, 'do'
         elif ctoken.type == Keyword.IMPORT:
             ntoken = rtokens.pop(0)
             if not IS_STR(ntoken.value):
