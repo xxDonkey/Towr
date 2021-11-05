@@ -79,11 +79,13 @@ def program_from_tokens(tokens: list[Token]) -> Program:
             do_str: str = KEYWORDS_INV[Keyword.DO]
             if do_str not in rtoken_strs:
                 compiler_error(ctoken.location, '`IF` statement expects `DO` statement')
+            didx = rtoken_strs.index(do_str)
+            rtokens = rtokens[:didx]
             operations.append(Operation(
                 type=OperationType.OPEN_IF,
                 operand=0
             ))
-            adv = len(rtokens)
+            adv = len(rtokens) + 1
         elif ctoken.type == Keyword.ELSE:
             assert False, 'else'
         elif ctoken.type == Keyword.WHILE:
@@ -91,7 +93,6 @@ def program_from_tokens(tokens: list[Token]) -> Program:
         elif ctoken.type == Keyword.DO:
             end_str: str = KEYWORDS_INV[Keyword.END]
             else_str: str = KEYWORDS_INV[Keyword.ELSE]
-            print(end_str not in rtoken_strs and else_str not in rtoken_strs)
             if end_str not in rtoken_strs and else_str not in rtoken_strs:
                 compiler_error(ctoken.location, '`IF` statement never closed')
             operations.append(Operation(
@@ -123,7 +124,7 @@ def program_from_tokens(tokens: list[Token]) -> Program:
             funcs += program.funcs
             adv = 2
         elif ctoken.type == Keyword.END:
-            assert False, 'impossible, error in tparser'
+            pass
 
 
         else:
