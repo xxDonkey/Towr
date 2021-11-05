@@ -83,15 +83,17 @@ def program_from_tokens(tokens: list[Token]) -> Program:
                 type=OperationType.OPEN_IF,
                 operand=0
             ))
-            adv = len(rtokens) + 1
+            adv = len(rtokens)
         elif ctoken.type == Keyword.ELSE:
             assert False, 'else'
         elif ctoken.type == Keyword.WHILE:
             assert False, 'while'
         elif ctoken.type == Keyword.DO:
             end_str: str = KEYWORDS_INV[Keyword.END]
-            if end_str not in rtoken_strs:
-                compiler_error(ctoken.location, '`IF` statement expects `DO` statement')
+            else_str: str = KEYWORDS_INV[Keyword.ELSE]
+            print(end_str not in rtoken_strs and else_str not in rtoken_strs)
+            if end_str not in rtoken_strs and else_str not in rtoken_strs:
+                compiler_error(ctoken.location, '`IF` statement never closed')
             operations.append(Operation(
                 type=OperationType.CHECK_STACK_SIZE_G,
                 operand=0
