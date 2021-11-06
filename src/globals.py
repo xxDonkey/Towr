@@ -33,6 +33,7 @@ class OperationType(Enum):
     PUSH_STR            = auto()
     CREATE_REF          = auto()
     OPEN_IF             = auto()
+    CLOSE_IF            = auto()
     CHECK_STACK_SIZE    = auto()
     CHECK_STACK_SIZE_G  = auto()
 
