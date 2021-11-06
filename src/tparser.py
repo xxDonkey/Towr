@@ -3,7 +3,7 @@ from globals import *
 from sim import sim_tokens
 from tokenizer import tokenize_src
 
-OPERATION_TYPE_NO_STATEMENTS: int = 3
+OPERATION_TYPE_NO_STATEMENTS: int = 4
 
 def rindex(tokens: list[str], value: str) -> int:
     for index, item in enumerate(reversed(tokens)):
@@ -18,6 +18,7 @@ def program_from_tokens(tokens: list[Token]) -> Program:
     
     stack_size: int = 0
     tp: int = 0
+    in_if: bool = False
     while tp < len(tokens):
         ctoken = tokens[tp]
         rtokens: list[Token] = tokens[tp + 1:]
@@ -76,6 +77,7 @@ def program_from_tokens(tokens: list[Token]) -> Program:
         elif ctoken.type == Keyword.FUNC:
             assert False, 'TODO: `FUNC` not implemented'
         elif ctoken.type == Keyword.IF:
+            in_if = True
             do_str: str = KEYWORDS_INV[Keyword.DO]
             if do_str not in rtoken_strs:
                 compiler_error(ctoken.location, '`IF` statement expects `DO` statement')
@@ -124,7 +126,12 @@ def program_from_tokens(tokens: list[Token]) -> Program:
             funcs += program.funcs
             adv = 2
         elif ctoken.type == Keyword.END:
-            pass
+            if in_if:
+                operations.append(Operation(
+                type=OperationType.CLOSE_IF,
+                operand=0
+                ))
+                in_if = False
 
 
         else:
