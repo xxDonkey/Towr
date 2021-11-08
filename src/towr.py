@@ -3,7 +3,9 @@ import os
 from globals import *
 from tokenizer import tokenize_src
 from tparser import program_from_tokens
-from com import com_program
+from com import com_program, intiialize
+
+STACK_LIMIT: int = 8
 
 def usage() -> None:
     """ Prints usage and exits with an exit code of 1. """
@@ -35,6 +37,7 @@ def main() -> None:
     if subcommand == 'sim':
         print(program)
     elif subcommand == 'com':
+        intiialize(STACK_LIMIT)
         com_program(program, filename.split('.')[0])
     else:
         print(f'ERROR: Subcommand {subcommand!r} not recognized')

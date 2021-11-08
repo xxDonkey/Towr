@@ -8,7 +8,6 @@ Location = Tuple[str, int, int]
 # size, ptr
 TStr = Tuple[int, int]
 
-
 def __compiler_print(location: Location, type: str, message: str):
     f, l, c = location
     print(f'{f}:{l}:{c}: {type}: {message}')
@@ -27,7 +26,6 @@ def IS_STR(token: str) -> bool:
     return token.startswith('"') and token.endswith('"')
 
 class OperationType(Enum):
-    SET_OP_POINTER      = auto()
     PUSH_INT            = auto()
     PUSH_BOOL           = auto()
     PUSH_STR            = auto()
@@ -43,8 +41,6 @@ class OperationType(Enum):
     EQUALS_STACK  = auto()
     GREATER_STACK = auto()
     LESS_STACK    = auto()
-
-
 
 class Keyword(Enum):
     LET         = auto()

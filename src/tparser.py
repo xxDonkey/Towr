@@ -3,7 +3,7 @@ from globals import *
 from sim import sim_tokens
 from tokenizer import tokenize_src
 
-OPERATION_TYPE_NO_STATEMENTS: int = 4
+OPERATION_TYPE_NO_STATEMENTS: int = 3
 
 def rindex(tokens: list[str], value: str) -> int:
     for index, item in enumerate(reversed(tokens)):
@@ -28,9 +28,8 @@ def program_from_tokens(tokens: list[Token]) -> Program:
         assert len(OperationType) == 11 + OPERATION_TYPE_NO_STATEMENTS, 'Unhandled members of `OperationType`'
         assert len(Keyword) == 8, 'Unhandled members of `Keyword`'
 
-        if (ctoken.type == OperationType.PUSH_INT           or
-            ctoken.type == OperationType.PUSH_BOOL          or
-            ctoken.type == OperationType.SET_OP_POINTER):
+        if (ctoken.type == OperationType.PUSH_INT or
+            ctoken.type == OperationType.PUSH_BOOL):
             operations.append(Operation(
                 type=OperationType(ctoken.type),
                 operand=ctoken.operand
@@ -128,7 +127,23 @@ def program_from_tokens(tokens: list[Token]) -> Program:
                 operand=0
                 ))
                 in_if = False
-
+        elif ctoken.value in (var_strs := [var.name for var in vars]):
+            var: Variable = vars[var_strs.index(ctoken.value)]
+            if var.datatype == DataType.INT:
+                operations.append(Operation(
+                    type=OperationType.PUSH_INT,
+                    operand=var.value
+                ))
+            elif var.datatype == DataType.BOOL:
+                operations.append(Operation(
+                    type=OperationType.PUSH_BOOL,
+                    operand=var.value
+                ))
+            elif var.datatype == DataType.PTR:
+                operations.append(Operation(
+                    type=OperationType.PUSH_STR,
+                    operand=var.value
+                ))
 
         else:
             compiler_error(ctoken.location, f'Unrecognized token {ctoken.value!r}')
