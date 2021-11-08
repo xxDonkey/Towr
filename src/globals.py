@@ -29,18 +29,8 @@ class OperationType(Enum):
     PUSH_INT            = auto()
     PUSH_BOOL           = auto()
     PUSH_STR            = auto()
-    OPEN_IF             = auto()
-    CLOSE_IF            = auto()
     CHECK_STACK_SIZE    = auto()
     CHECK_STACK_SIZE_G  = auto()
-
-    PLUS_STACK    = auto()
-    MULT_STACK    = auto()
-    PRINT_TOP     = auto()
-    SWAP_STACK    = auto()
-    EQUALS_STACK  = auto()
-    GREATER_STACK = auto()
-    LESS_STACK    = auto()
 
 class Keyword(Enum):
     LET         = auto()
@@ -86,7 +76,7 @@ class Variable:
     
 @dataclass
 class Operation:
-    type: OperationType
+    type: Union[OperationType, Keyword, Intrinsic]
     operand: Union[int, str]
 
 @dataclass

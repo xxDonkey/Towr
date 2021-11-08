@@ -48,13 +48,13 @@ def program_from_tokens(tokens: list[Token]) -> Program:
               ctoken.type == Intrinsic.GREATER  or
               ctoken.type == Intrinsic.LESS): 
             operations.append(Operation(
-                type=OperationType(ctoken.type.value + OperationType.PLUS_STACK.value - 1),
+                type=ctoken.type,
                 operand=0
             ))
             stack_size -= 1
         elif ctoken.type == Intrinsic.SWAP: # 0
             operations.append(Operation(
-                type=OperationType(ctoken.type.value + OperationType.PLUS_STACK.value - 1),
+                type=ctoken.type,
                 operand=0
             ))
 
@@ -79,7 +79,7 @@ def program_from_tokens(tokens: list[Token]) -> Program:
             didx = rtoken_strs.index(do_str)
             rtokens = rtokens[:didx]
             operations.append(Operation(
-                type=OperationType.OPEN_IF,
+                type=Keyword.IF,
                 operand=0
             ))
             adv = len(rtokens) + 1
@@ -97,7 +97,7 @@ def program_from_tokens(tokens: list[Token]) -> Program:
                 operand=0
             ))
             operations.append(Operation(
-                type=OperationType.EQUALS_STACK,
+                type=Keyword.IF,
                 operand=0
             ))
         elif ctoken.type == Keyword.IMPORT:
@@ -123,7 +123,7 @@ def program_from_tokens(tokens: list[Token]) -> Program:
         elif ctoken.type == Keyword.END:
             if in_if:
                 operations.append(Operation(
-                type=OperationType.CLOSE_IF,
+                type=Keyword.IF,
                 operand=0
                 ))
                 in_if = False
