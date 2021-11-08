@@ -25,7 +25,7 @@ def program_from_tokens(tokens: list[Token]) -> Program:
         rtoken_strs: list[str] = [token.value for token in rtokens]
         adv: int = 1
 
-        assert len(OperationType) == 12 + OPERATION_TYPE_NO_STATEMENTS, 'Unhandled members of `OperationType`'
+        assert len(OperationType) == 11 + OPERATION_TYPE_NO_STATEMENTS, 'Unhandled members of `OperationType`'
         assert len(Keyword) == 8, 'Unhandled members of `Keyword`'
 
         if (ctoken.type == OperationType.PUSH_INT           or
@@ -69,10 +69,6 @@ def program_from_tokens(tokens: list[Token]) -> Program:
             CHECK_ASSIGNMENT(ntoken)
             value = sim_tokens(rtokens, vars)
             vars.append(Variable(**value.__dict__, name=ntoken.value))
-            operations.append(Operation(
-                type=OperationType.CREATE_REF,
-                operand=value.value
-            ))
             adv = len(rtokens) + 3 # rtokens does not include var name or end keyword, we want to skip end
         elif ctoken.type == Keyword.FUNC:
             assert False, 'TODO: `FUNC` not implemented'

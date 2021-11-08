@@ -3,6 +3,7 @@ import os
 from globals import *
 from tokenizer import tokenize_src
 from tparser import program_from_tokens
+from com import com_program
 
 def usage() -> None:
     """ Prints usage and exits with an exit code of 1. """
@@ -27,13 +28,14 @@ def main() -> None:
     with open(filepath, 'r') as file:
         code_body = file.read()
 
+    tokens = tokenize_src(TowrFile(code_body, filename))
+    program = program_from_tokens(tokens)
+
     subcommand = sys.argv[1]
     if subcommand == 'sim':
-        tokens = tokenize_src(TowrFile(code_body, filename))
-        program = program_from_tokens(tokens)
         print(program)
     elif subcommand == 'com':
-        assert False, 'TODO: not implemented'
+        com_program(program, filename.split('.')[0])
     else:
         print(f'ERROR: Subcommand {subcommand!r} not recognized')
         usage()

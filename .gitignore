@@ -115,3 +115,6 @@ dmypy.json
 
 # Other
 test/
+*.asm
+*.obj
+*.exe
