@@ -57,6 +57,8 @@ class Intrinsic(Enum):
     DUP         = auto()
     DROP        = auto()
     STORE       = auto()
+    INC         = auto()
+    DEC         = auto()
 
 class DataType(Enum):
     INT         = auto()
@@ -138,6 +140,8 @@ INTRINSICS: dict[str, Intrinsic] = {
     'dup'   : Intrinsic.DUP,
     'drop'  : Intrinsic.DROP,
     '!s'    : Intrinsic.STORE,
+    '++'    : Intrinsic.INC,
+    '--'    : Intrinsic.DEC,
 }
 assert len(INTRINSICS) == len(Intrinsic), 'Unassigned intrinsics'
 

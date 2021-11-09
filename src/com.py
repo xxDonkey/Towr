@@ -1,5 +1,6 @@
 import os
 from globals import *
+from syscalls import SYSCALLS
 
 initialized: bool = False
 stack_limit: int
@@ -97,11 +98,10 @@ def __com_program_win10(program: Program, outfile: str) -> None:
     cb.writel('start:')
     cb.indent = 1
 
+    assert len(OperationType) == 7, 'Unhandled members of `OperationType`'
+    assert len(Keyword) == 8 + _UNUSED_KEYWORDS, 'Unhandled members of `Keyword`'
+    assert len(Intrinsic) == 13, 'Unhandled members of `Intrinsic`'
     for operation in program.operations:
-        assert len(OperationType) == 7, 'Unhandled members of `OperationType`'
-        assert len(Keyword) == 8 + _UNUSED_KEYWORDS, 'Unhandled members of `Keyword`'
-        assert len(Intrinsic) == 11, 'Unhandled members of `Intrinsic`'
-
         if operation.type == OperationType.PUSH_INT:
             assert isinstance(operation.operand, int), 'Error in tparser.py in `program_from_tokens` or tokenizer.py in `tokenize_src`'
             cb.writecl(';; --- Push INT [%i] ---;;' % operation.operand)
@@ -229,6 +229,16 @@ def __com_program_win10(program: Program, outfile: str) -> None:
             cb.writel('pop eax')
             cb.writel('pop ebx')
             cb.writel('mov [ebx], eax')
+        elif operation.type == Intrinsic.INC:
+            cb.writecl(';; --- INCREMENT --- ;;')
+            cb.writel('pop eax')
+            cb.writel('inc eax')
+            cb.writel('push eax')
+        elif operation.type == Intrinsic.DEC:
+            cb.writecl(';; --- DECREMENT --- ;;')
+            cb.writel('pop eax')
+            cb.writel('dec eax')
+            cb.writel('push eax')
             
     data_str: str = ''
     data_str += '\n;; --- Data Declarations --- ;;'
