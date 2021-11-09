@@ -34,6 +34,7 @@ class OperationType(Enum):
     FUNC_CALL           = auto()
     WRITE_STACK_SIZE    = auto()
     PUSH_STACK_SIZE     = auto()
+    RETURN              = auto()
 
 class Keyword(Enum):
     LET         = auto()
@@ -67,6 +68,7 @@ class DataType(Enum):
     INT         = auto()
     BOOL        = auto()
     PTR         = auto()
+    LIST        = auto()
 
 @dataclass
 class Token:
@@ -152,13 +154,6 @@ INTRINSICS: dict[str, Intrinsic] = {
     '--'    : Intrinsic.DEC,
 }
 assert len(INTRINSICS) == len(Intrinsic), 'Unassigned intrinsics'
-
-DATATYPES: dict[type, DataType] = {
-    int     : DataType.INT,
-    bool    : DataType.BOOL,
-    str     : DataType.PTR,
-}
-assert len(DATATYPES) == len(DataType), 'Unassigned datatypes'
 
 def CHECK_ASSIGNMENT(token: Token) -> None:
     """ Checks if a given token can be used as a variable or function name. """

@@ -18,11 +18,12 @@ _EXECUTE_WIN10: str = '%s.exe'
 
 _DATA_ESCAPE_SEQUENCE: str = '|!DATA!|'
 _VARIABLE_TYPE_CONVERSIONL: dict[DataType, str] = {
-    DataType.INT: 'sdword',
+    DataType.INT : 'sdword',
     DataType.BOOL: 'byte',
-    DataType.PTR: 'byte',
+    DataType.PTR : 'byte',
+    DataType.LIST: 'dword',
 }
-assert len(DATATYPES) == len(DataType), 'Unassigned datatypes'
+assert len(_VARIABLE_TYPE_CONVERSIONL) == len(DataType), 'Unassigned datatypes'
 
 class BlockType(Enum):
     IF      = auto()
@@ -68,7 +69,7 @@ def com_program(program: Program, outfile: str) -> None:
     __com_program_win10(program, outfile)
 
 def __com_program_win10(program: Program, outfile: str, compile: bool=True) -> Union[str, None]:
-    assert len(OperationType) == 8, 'Unhandled members of `OperationType`'
+    assert len(OperationType) == 9, 'Unhandled members of `OperationType`'
     assert len(Keyword) == 8 + _UNUSED_KEYWORDS, 'Unhandled members of `Keyword`'
     assert len(Intrinsic) == 14, 'Unhandled members of `Intrinsic`'
 
@@ -114,9 +115,11 @@ def __com_program_win10(program: Program, outfile: str, compile: bool=True) -> U
                 func: Func = program.funcs[operation.operand]
                 cb.writecl(';; --- Call Func [%s]---;;' % func.name)
                 cb.writel('call %s' % func.name)
-                cb.writel('printf("%i", did_ret)')
-                cb.writel('print addr newline')
-                
+                cb.writel('push eax')
+            elif operation.type == OperationType.RETURN:
+                assert isinstance(operation.operand, int) and 0 <= operation.operand <= 1, 'Error in tparser.py in `program_from_tokens` or tokenizer.py in `tokenize_src`'
+                cb.writecl(';; --- Return [%s] Values From Stack ---;;' % operation.operand)
+                cb.writel('ret %i' % operation.operand)
             elif operation.type == OperationType.WRITE_STACK_SIZE:
                 cb.writecl(';; --- Write Stack Size to `stacksize` Variable ---;;')
                 cb.writel('mov eax, ebp')
@@ -145,9 +148,9 @@ def __com_program_win10(program: Program, outfile: str, compile: bool=True) -> U
                 cb.write_buffer('.while ')
                 blocks.append(BlockType.WHILE)
             elif operation.type == Keyword.DO:
-                cb.writecl('pop ecx')
+                cb.writecl('pop eax')
                 cb.dump_buffer()
-                cb.write_no_indent('ecx == 1\n')
+                cb.write_no_indent('eax == 1\n')
             elif operation.type == Keyword.END:
                 cb.writel('\n    .end%s ' % _BLOCK_TYPE_CONVERSION[blocks.pop()])
 
@@ -277,7 +280,7 @@ def __com_program_win10(program: Program, outfile: str, compile: bool=True) -> U
         strs += _strs
         cb.writel(func_body)
         func_data += '\n%s' % generate_variable_declarations(func.vars)
-        cb.writel('    ret 0')
+        #cb.writel('    ret 0')
         cb.writel('%s endp' % func.name)
     
     cb.writel('\nstart:')
@@ -289,8 +292,6 @@ def __com_program_win10(program: Program, outfile: str, compile: bool=True) -> U
     data_str += '\n;; --- Data Declarations --- ;;'
     data_str += '\n.data'
     data_str += '\n\n;; --- Default Program Data --- ;;'
-    data_str += '\ndid_ret byte 0'
-    data_str += '\nret_val dword 0'
     data_str += '\nstacksize dword 0'
     data_str += '\nnewline db " ", 10, 0'
     data_str += '\n\n;; --- Variable Data --- ;;'

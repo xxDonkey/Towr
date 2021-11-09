@@ -3,7 +3,7 @@ from globals import *
 from sim import sim_tokens
 from tokenizer import tokenize_src
 
-_OPERATION_TYPE_NO_STATEMENTS: int = 5
+_OPERATION_TYPE_NO_STATEMENTS: int = 6
 
 def rindex(tokens: list[str], value: str) -> int:
     for index, item in enumerate(reversed(tokens)):
@@ -183,20 +183,10 @@ def program_from_tokens(tokens: list[Token]) -> Program:
                 Operation(OperationType.PUSH_INT, operand=4),
                 Operation(Intrinsic.EQUALS, operand=0),
                 Operation(Keyword.DO, operand=0),
-                # Set `_retval` to top stack value
-                Operation(OperationType.PUSH_VAR_REF, operand='ret_val'),
-                Operation(Intrinsic.SWAP, operand=0),
-                Operation(Intrinsic.STORE, operand=0),
-                # Set `_did_ret` to 1
-                Operation(OperationType.PUSH_VAR_REF, operand='did_ret'),
-                Operation(OperationType.PUSH_INT, operand=1),
-                Operation(Intrinsic.STORE, operand=0),
-                Operation(Keyword.ELSE, operand=0),
-                # Set `_did_ret` to 0
-                Operation(OperationType.PUSH_VAR_REF, operand='did_ret'),
-                Operation(OperationType.PUSH_INT, operand=0),
-                Operation(Intrinsic.STORE, operand=0),
+                # There is a value on the stack, save it to eax (by droping)
+                Operation(Intrinsic.DROP, operand=0),
                 Operation(Keyword.END, operand=0),
+                Operation(OperationType.RETURN, operand=0),
             ]
             funcs[-1].vars = fprogram.vars
             adv = len(btokens) + 2
