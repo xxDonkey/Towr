@@ -25,8 +25,8 @@ _VARIABLE_TYPE_CONVERSIONL: dict[DataType, str] = {
 assert len(DATATYPES) == len(DataType), 'Unassigned datatypes'
 
 class BlockType(Enum):
-    IF      =auto()
-    WHILE   =auto()
+    IF      = auto()
+    WHILE   = auto()
 
 _BLOCK_TYPE_CONVERSION: dict[BlockType, str] = {
     BlockType.IF: 'if',
