@@ -3,7 +3,7 @@ from globals import *
 from sim import sim_tokens
 from tokenizer import tokenize_src
 
-_OPERATION_TYPE_NO_STATEMENTS: int = 4
+_OPERATION_TYPE_NO_STATEMENTS: int = 5
 
 def rindex(tokens: list[str], value: str) -> int:
     for index, item in enumerate(reversed(tokens)):
@@ -26,7 +26,7 @@ def program_from_tokens(tokens: list[Token]) -> Program:
 
         assert len(OperationType) == 3 + _OPERATION_TYPE_NO_STATEMENTS, 'Unhandled members of `OperationType`'
         assert len(Keyword) == 10, 'Unhandled members of `Keyword`'
-        assert len(Intrinsic) == 13, 'Unhandled members of `Intrinsic`'
+        assert len(Intrinsic) == 14, 'Unhandled members of `Intrinsic`'
 
         if (ctoken.type == OperationType.PUSH_INT or
             ctoken.type == OperationType.PUSH_BOOL):
@@ -51,6 +51,7 @@ def program_from_tokens(tokens: list[Token]) -> Program:
               ctoken.type == Intrinsic.DUP      or
               ctoken.type == Intrinsic.DROP     or
               ctoken.type == Intrinsic.STORE    or
+              ctoken.type == Intrinsic.READ     or
               ctoken.type == Intrinsic.INC      or
               ctoken.type == Intrinsic.DEC): 
             operations.append(Operation(
@@ -175,20 +176,50 @@ def program_from_tokens(tokens: list[Token]) -> Program:
                     break
             btokens: list[Token] = rtokens[:i]
             fprogram = program_from_tokens(btokens)
-            funcs[-1].operations = fprogram.operations
+            funcs[-1].operations = fprogram.operations + [
+                # Addition end of function operations
+                Operation(Keyword.IF, operand=0),
+                Operation(OperationType.PUSH_STACK_SIZE, operand=0),
+                Operation(OperationType.PUSH_INT, operand=4),
+                Operation(Intrinsic.EQUALS, operand=0),
+                Operation(Keyword.DO, operand=0),
+                # Set `_retval` to top stack value
+                Operation(OperationType.PUSH_VAR_REF, operand='ret_val'),
+                Operation(Intrinsic.SWAP, operand=0),
+                Operation(Intrinsic.STORE, operand=0),
+                # Set `_did_ret` to 1
+                Operation(OperationType.PUSH_VAR_REF, operand='did_ret'),
+                Operation(OperationType.PUSH_INT, operand=1),
+                Operation(Intrinsic.STORE, operand=0),
+                Operation(Keyword.ELSE, operand=0),
+                # Set `_did_ret` to 0
+                Operation(OperationType.PUSH_VAR_REF, operand='did_ret'),
+                Operation(OperationType.PUSH_INT, operand=0),
+                Operation(Intrinsic.STORE, operand=0),
+                Operation(Keyword.END, operand=0),
+            ]
             funcs[-1].vars = fprogram.vars
             adv = len(btokens) + 2
+        # variable
         elif ctoken.value in (var_strs := [var.name for var in vars]):
             var: Variable = vars[var_strs.index(ctoken.value)]
             operations.append(Operation(
                 type=OperationType.VAR_REF,
-                 operand=var.name
+                operand=var.name
             ))
+        # variable reference
         elif ctoken.value.startswith('&') and (val := ctoken.value[1:]) in (var_strs := [var.name for var in vars]):
             var: Variable = vars[var_strs.index(val)]
             operations.append(Operation(
                 type=OperationType.PUSH_VAR_REF,
-                 operand=var.name
+                operand=var.name
+            ))
+        # function
+        elif ctoken.value in (funcs_strs := [func.name for func in funcs]):
+            idx = funcs_strs.index(ctoken.value)
+            operations.append(Operation(
+                type=OperationType.FUNC_CALL,
+                operand=idx
             ))
 
         else:

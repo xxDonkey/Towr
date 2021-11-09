@@ -31,8 +31,9 @@ class OperationType(Enum):
     PUSH_STR            = auto()
     VAR_REF             = auto()
     PUSH_VAR_REF        = auto()
+    FUNC_CALL           = auto()
     WRITE_STACK_SIZE    = auto()
-    CHECK_STACK_SIZE_G  = auto()
+    PUSH_STACK_SIZE     = auto()
 
 class Keyword(Enum):
     LET         = auto()
@@ -58,6 +59,7 @@ class Intrinsic(Enum):
     DUP         = auto()
     DROP        = auto()
     STORE       = auto()
+    READ       = auto()
     INC         = auto()
     DEC         = auto()
 
@@ -145,6 +147,7 @@ INTRINSICS: dict[str, Intrinsic] = {
     'dup'   : Intrinsic.DUP,
     'drop'  : Intrinsic.DROP,
     '!s'    : Intrinsic.STORE,
+    '@s'    : Intrinsic.READ,
     '++'    : Intrinsic.INC,
     '--'    : Intrinsic.DEC,
 }
