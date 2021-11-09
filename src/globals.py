@@ -31,7 +31,7 @@ class OperationType(Enum):
     PUSH_STR            = auto()
     VAR_REF             = auto()
     PUSH_VAR_REF        = auto()
-    PUSH_STACK_SIZE     = auto()
+    WRITE_STACK_SIZE    = auto()
     CHECK_STACK_SIZE_G  = auto()
 
 class Keyword(Enum):

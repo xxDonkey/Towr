@@ -133,8 +133,13 @@ def __com_program_win10(program: Program, outfile: str) -> None:
             name = operation.operand
             cb.writel('mov eax, offset %s' % name)
             cb.writel('push eax')
-        elif operation.type == OperationType.PUSH_STACK_SIZE:
-            assert False, 'PUSH_STACK_SIZE'
+        elif operation.type == OperationType.WRITE_STACK_SIZE:
+            cb.writecl(';; --- Write Stack Size to `stacksize` Variable ---;;')
+            cb.writel('mov eax, ebp')
+            cb.writel('mov ebx, esp')
+            cb.writel('sub eax, ebx') # eax has stacksize
+            cb.writel('mov ebx, offset stacksize')
+            cb.writel('mov [ebx], eax')
         elif operation.type == OperationType.CHECK_STACK_SIZE_G:
             assert False, 'CHECK_STACK_SIZE_G'
 
@@ -243,6 +248,7 @@ def __com_program_win10(program: Program, outfile: str) -> None:
     data_str: str = ''
     data_str += '\n;; --- Data Declarations --- ;;'
     data_str += '\n.data'
+    data_str += '\nstacksize dword 0'
     data_str += '\nnewline db " ", 10, 0'
     for var in program.vars:
         data_str += '\n%s %s %i' % (var.name, _VARIABLE_TYPE_CONVERSIONL[var.datatype], var.value) 

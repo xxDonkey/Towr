@@ -113,6 +113,10 @@ def program_from_tokens(tokens: list[Token]) -> Program:
             if end_str not in rtoken_strs and else_str not in rtoken_strs and elseif_str not in rtoken_strs:
                 compiler_error(ctoken.location, '`IF` statement never closed')
             operations.append(Operation(
+                type=OperationType.WRITE_STACK_SIZE,
+                operand=0
+            ))
+            operations.append(Operation(
                 type=Keyword.DO,
                 operand=0
             ))
