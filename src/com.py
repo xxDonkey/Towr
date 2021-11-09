@@ -43,6 +43,9 @@ class CodeBody:
         assert self.indent >= 0, 'impossible, error in com.py in `__com_program_win10`'
         return ' ' * 4 * self.indent
 
+    def write_no_indent(self, code: str) -> None:
+        self.code_body += code
+
     def write(self, code: str) -> None:
         self.code_body += self.__get_indent() + code
     
@@ -148,11 +151,12 @@ def __com_program_win10(program: Program, outfile: str) -> None:
             cb.writel('\n.else')
             cb.write_buffer('.endif\n\n.if ')
         elif operation.type == Keyword.WHILE:
-            pass
+            cb.write_buffer('.while ')
+            blocks.append(BlockType.WHILE)
         elif operation.type == Keyword.DO:
             cb.writecl('pop ecx')
             cb.dump_buffer()
-            cb.write('ecx == 1\n')
+            cb.write_no_indent('ecx == 1\n')
         elif operation.type == Keyword.END:
             cb.writel('\n    .end%s ' % _BLOCK_TYPE_CONVERSION[blocks.pop()])
 
