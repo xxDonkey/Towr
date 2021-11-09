@@ -3,7 +3,7 @@ from globals import *
 from sim import sim_tokens
 from tokenizer import tokenize_src
 
-_OPERATION_TYPE_NO_STATEMENTS: int = 2
+_OPERATION_TYPE_NO_STATEMENTS: int = 3
 
 def rindex(tokens: list[str], value: str) -> int:
     for index, item in enumerate(reversed(tokens)):
@@ -26,7 +26,7 @@ def program_from_tokens(tokens: list[Token]) -> Program:
 
         assert len(OperationType) == 3 + _OPERATION_TYPE_NO_STATEMENTS, 'Unhandled members of `OperationType`'
         assert len(Keyword) == 9, 'Unhandled members of `Keyword`'
-        assert len(Intrinsic) == 8, 'Unhandled members of `Intrinsic`'
+        assert len(Intrinsic) == 10, 'Unhandled members of `Intrinsic`'
 
         if (ctoken.type == OperationType.PUSH_INT or
             ctoken.type == OperationType.PUSH_BOOL):
@@ -47,7 +47,9 @@ def program_from_tokens(tokens: list[Token]) -> Program:
               ctoken.type == Intrinsic.PRINT    or
               ctoken.type == Intrinsic.EQUALS   or 
               ctoken.type == Intrinsic.GREATER  or
-              ctoken.type == Intrinsic.LESS): 
+              ctoken.type == Intrinsic.LESS     or
+              ctoken.type == Intrinsic.DUP      or
+              ctoken.type == Intrinsic.DROP): 
             operations.append(Operation(
                 type=ctoken.type,
                 operand=0
@@ -132,21 +134,10 @@ def program_from_tokens(tokens: list[Token]) -> Program:
             ))
         elif ctoken.value in (var_strs := [var.name for var in vars]):
             var: Variable = vars[var_strs.index(ctoken.value)]
-            if var.datatype == DataType.INT:
-                operations.append(Operation(
-                    type=OperationType.PUSH_INT,
-                    operand=var.value
-                ))
-            elif var.datatype == DataType.BOOL:
-                operations.append(Operation(
-                    type=OperationType.PUSH_BOOL,
-                    operand=var.value
-                ))
-            elif var.datatype == DataType.PTR:
-                operations.append(Operation(
-                    type=OperationType.PUSH_STR,
-                    operand=var.value
-                ))
+            operations.append(Operation(
+                type=OperationType.VAR_REF,
+                 operand=var.name
+            ))
 
         else:
             compiler_error(ctoken.location, f'Unrecognized token {ctoken.value!r}')

@@ -29,7 +29,8 @@ class OperationType(Enum):
     PUSH_INT            = auto()
     PUSH_BOOL           = auto()
     PUSH_STR            = auto()
-    PUSH_STACK_SIZE    = auto()
+    VAR_REF             = auto()
+    PUSH_STACK_SIZE     = auto()
     CHECK_STACK_SIZE_G  = auto()
 
 class Keyword(Enum):
@@ -52,6 +53,8 @@ class Intrinsic(Enum):
     EQUALS      = auto()
     GREATER     = auto()
     LESS        = auto()
+    DUP         = auto()
+    DROP        = auto()
 
 class DataType(Enum):
     INT         = auto()
@@ -130,6 +133,8 @@ INTRINSICS: dict[str, Intrinsic] = {
     '='     : Intrinsic.EQUALS,
     '>'     : Intrinsic.GREATER,
     '<'     : Intrinsic.LESS,
+    'dup'   : Intrinsic.DUP,
+    'drop'  : Intrinsic.DROP,
 }
 assert len(INTRINSICS) == len(Intrinsic), 'Unassigned intrinsics'
 

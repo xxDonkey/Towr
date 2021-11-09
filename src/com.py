@@ -9,29 +9,43 @@ def intiialize(_stack_limit: int) -> None:
     stack_limit = _stack_limit
     initialized = True
 
+_UNUSED_KEYWORDS: int = 1 # import is dealt with elsewhere
+
 _BUILD_WIN10: str = 'ml /c /coff /Cp %s.asm'
 _LINK_WIN10: str = 'link /subsystem:console %s.obj'
 _EXECUTE_WIN10: str = '%s.exe'
+
+_DATA_ESCAPE_SEQUENCE: str = '|!DATA!|'
+_VARIABLE_TYPE_CONVERSIONL: dict[DataType, str] = {
+    DataType.INT: 'sdword',
+    DataType.BOOL: 'byte',
+    DataType.PTR: 'byte',
+}
 
 @dataclass
 class CodeBody:
     code_body: str = ''
     buffer: str = ''
+    indent: int = 0
+
+    def __get_indent(self) -> str:
+        assert self.indent >= 0, 'impossible, error in com.py in `__com_program_win10`'
+        return ' ' * 2 * self.indent
 
     def write(self, code: str) -> None:
-        self.code_body += code
+        self.code_body += self.__get_indent() + code
     
     def writel(self, code: str) -> None:
-        self.code_body += code + '\n'
+        self.code_body += self.__get_indent() + code + '\n'
 
     def writecl(self, code: str) -> None:
-        self.code_body += '\n' + code + '\n'
+        self.code_body += '\n' + self.__get_indent() + code + '\n'
 
     def write_buffer(self, code: str) -> None:
         self.buffer += code 
 
     def dump_buffer(self) -> None:
-        self.code_body += self.buffer
+        self.code_body += self.__get_indent() + self.buffer
         self.buffer = ''
 
 def com_program(program: Program, outfile: str) -> None:
@@ -39,12 +53,15 @@ def com_program(program: Program, outfile: str) -> None:
     __com_program_win10(program, outfile)
 
 def __com_program_win10(program: Program, outfile: str) -> None:
-    # for o in program.operations: print(f'-- {o} --')
+    # print(program)
+    for o in program.operations: print(f'-- {o} --')
     cb: CodeBody = CodeBody()
+    strs: list[bytes] = []
 
     cb.writel(';; Necessary initialization statements ;;')
     cb.writel('.686')
-    cb.writel('.model flat, stdcall\n')
+    cb.writel('.model flat, stdcall')
+    cb.writel('assume fs:nothing\n')
 
     cb.writel(';; Necessary include statments ;;')
     cb.writel('include /masm32/macros/macros.asm')
@@ -53,31 +70,46 @@ def __com_program_win10(program: Program, outfile: str) -> None:
     cb.writel('include /masm32/include/masm32.inc')
     cb.writel('includelib /masm32/lib/kernel32')
     cb.writel('includelib /masm32/lib/msvcrt')
-    cb.writel('includelib /masm32/lib/\n')
+    cb.writel('includelib /masm32/lib/masm32')
 
-    cb.writel(';; Code body ;;')
+    cb.writel(_DATA_ESCAPE_SEQUENCE)
+
+    cb.writel('\n;; --- Code Body ---;;')
     cb.writel('.code')
     
     cb.writel('start:')
+    cb.indent = 2
+
     for operation in program.operations:
-        assert len(OperationType) == 5, 'Unhandled members of `OperationType`'
-        assert len(Keyword) == 9, 'Unhandled members of `Keyword`'
-        assert len(Intrinsic) == 8, 'Unhandled members of `Intrinsic`'
+        assert len(OperationType) == 6, 'Unhandled members of `OperationType`'
+        assert len(Keyword) == 8 + _UNUSED_KEYWORDS, 'Unhandled members of `Keyword`'
+        assert len(Intrinsic) == 10, 'Unhandled members of `Intrinsic`'
 
         if operation.type == OperationType.PUSH_INT:
             assert isinstance(operation.operand, int), 'Error in tparser.py in `program_from_tokens` or tokenizer.py in `tokenize_src`'
-            cb.writecl(';; --- Push INT %i ---;;' % operation.operand)
+            cb.writecl(';; --- Push INT [%i] ---;;' % operation.operand)
             cb.writel('mov eax, %i' % operation.operand)
             cb.writel('push eax')
         if operation.type == OperationType.PUSH_BOOL:
             assert isinstance(operation.operand, int) and 0 <= operation.operand <= 1, 'Error in tparser.py in `program_from_tokens` or tokenizer.py in `tokenize_src`'
-            cb.writecl(';; --- Push BOOL %i ---;;' % operation.operand)
+            cb.writecl(';; --- Push BOOL [%i] ---;;' % operation.operand)
             cb.writel('mov eax, %i' % operation.operand)
             cb.writel('push eax')
-            assert False, 'PUSH_BOOL'
         if operation.type == OperationType.PUSH_STR:
             assert isinstance(operation.operand, str), 'Error in tparser.py in `program_from_tokens` or tokenizer.py in `tokenize_src`'
-            assert False, 'PUSH_STR'
+            cb.writecl(';; --- Push STR [%s]---;;' % operation.operand)
+            encoded = operation.operand.encode('utf-8')
+            size = len(encoded)
+            cb.writel('mov eax, %i' % size)
+            cb.writel('push eax')
+            cb.writel('push offset str_%i' % len(strs))
+            strs.append(encoded)
+        elif operation.type == OperationType.VAR_REF:
+            assert isinstance(operation.operand, str), 'Error in tparser.py in `program_from_tokens` or tokenizer.py in `tokenize_src`'
+            cb.writecl(';; --- Push Variable to Stack [%s]---;;' % operation.operand)
+            name = operation.operand
+            cb.writel('mov eax, %s' % name)
+            cb.writel('push eax')
         elif operation.type == OperationType.PUSH_STACK_SIZE:
             assert False, 'PUSH_STACK_SIZE'
         elif operation.type == OperationType.CHECK_STACK_SIZE_G:
@@ -85,6 +117,8 @@ def __com_program_win10(program: Program, outfile: str) -> None:
 
         elif operation.type == Keyword.LET:
             assert False, 'LET'
+        elif operation.type == Keyword.FUNC:
+            assert False, 'FUNC'
         elif operation.type == Keyword.IF:
             cb.write_buffer('.if ')
         elif operation.type == Keyword.ELSE:
@@ -115,12 +149,13 @@ def __com_program_win10(program: Program, outfile: str) -> None:
             cb.writecl(';; --- MULTIPLY --- ;;')
             cb.writel('pop eax')
             cb.writel('pop ebx')
-            cb.writel('mul eax, ebx')
+            cb.writel('mul ebx')
             cb.writel('push eax')
         elif operation.type == Intrinsic.PRINT:
             cb.writecl(';; --- PRINT --- ;;')
-            cb.writel('pop ecx')
-            cb.writel('printf("%i", ecx)')
+            cb.writel('pop eax')
+            cb.writel('printf("%i", eax)')
+            cb.writel('print addr newline')
         elif operation.type == Intrinsic.SWAP:
             cb.writecl(';; --- SWAP --- ;;')
             cb.writel('pop eax')
@@ -154,10 +189,26 @@ def __com_program_win10(program: Program, outfile: str) -> None:
             cb.writel('cmp ebx, eax')
             cb.writel('cmovl ecx, edx')
             cb.writel('push ecx')
+        elif operation.type == Intrinsic.DUP:
+            cb.writecl(';; --- DUP --- ;;')
+            cb.writel('pop eax')
+            cb.writel('push eax')
+            cb.writel('push eax')
+        elif operation.type == Intrinsic.DROP:
+            cb.writecl(';; --- DROP --- ;;')
+            cb.writel('pop eax')
             
+    data_str: str = ''
+    data_str += '\n;; --- Data Declarations --- ;;'
+    data_str += '\n.data'
+    data_str += '\nnewline db " ", 10, 0'
+    for var in program.vars:
+        data_str += '\n%s %s %i' % (var.name, _VARIABLE_TYPE_CONVERSIONL[var.datatype], var.value) 
+    for i, Str in enumerate(strs):
+        data_str += '\nstr_%i db "%s"' % (i, Str.decode('utf-8'))
+    cb.code_body = cb.code_body.replace(_DATA_ESCAPE_SEQUENCE, data_str)
 
-
-
+    cb.indent = 0
     cb.writel('\n;; Ends the program ;;')
     cb.writel('end start')
 
