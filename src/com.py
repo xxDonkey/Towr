@@ -16,28 +16,34 @@ _EXECUTE_WIN10: str = '%s.exe'
 @dataclass
 class CodeBody:
     code_body: str = ''
-    indent: int = 0
-
-    def __get_indent(self) -> str:
-        assert self.indent >= 0, 'impossible, error in com.py in `__com_program_win10`'
-        return ' ' * 2 * self.indent
+    buffer: str = ''
 
     def write(self, code: str) -> None:
-        self.code_body += self.__get_indent() + code
+        self.code_body += code
     
     def writel(self, code: str) -> None:
-        self.code_body += self.__get_indent() + code + '\n'
+        self.code_body += code + '\n'
+
+    def writecl(self, code: str) -> None:
+        self.code_body += '\n' + code + '\n'
+
+    def write_buffer(self, code: str) -> None:
+        self.buffer += code 
+
+    def dump_buffer(self) -> None:
+        self.code_body += self.buffer
+        self.buffer = ''
 
 def com_program(program: Program, outfile: str) -> None:
     assert initialized, '`initialize` must be called to use com.py'
     __com_program_win10(program, outfile)
 
 def __com_program_win10(program: Program, outfile: str) -> None:
+    # for o in program.operations: print(f'-- {o} --')
     cb: CodeBody = CodeBody()
-    indentation: int = 0
 
     cb.writel(';; Necessary initialization statements ;;')
-    cb.writel('.386')
+    cb.writel('.686')
     cb.writel('.model flat, stdcall\n')
 
     cb.writel(';; Necessary include statments ;;')
@@ -52,45 +58,101 @@ def __com_program_win10(program: Program, outfile: str) -> None:
     cb.writel(';; Code body ;;')
     cb.writel('.code')
     
-    cb.writel('start:\n')
+    cb.writel('start:')
     for operation in program.operations:
-        assert len(OperationType) == 14, 'Unhandled members of `OperationType`'
+        assert len(OperationType) == 5, 'Unhandled members of `OperationType`'
+        assert len(Keyword) == 9, 'Unhandled members of `Keyword`'
+        assert len(Intrinsic) == 7, 'Unhandled members of `Intrinsic`'
+
         if operation.type == OperationType.PUSH_INT:
             assert isinstance(operation.operand, int), 'Error in tparser.py in `program_from_tokens` or tokenizer.py in `tokenize_src`'
-            cb.writel('push eax')
-            cb.writel('mov eax, %d' % operation.operand)
+            cb.writecl(';; --- Push INT %i ---;;' % operation.operand)
+            cb.writel('mov eax, %i' % operation.operand)
             cb.writel('push eax')
         if operation.type == OperationType.PUSH_BOOL:
+            assert isinstance(operation.operand, int) and 0 <= operation.operand <= 1, 'Error in tparser.py in `program_from_tokens` or tokenizer.py in `tokenize_src`'
+            cb.writecl(';; --- Push BOOL %i ---;;' % operation.operand)
+            cb.writel('mov eax, %i' % operation.operand)
+            cb.writel('push eax')
             assert False, 'PUSH_BOOL'
         if operation.type == OperationType.PUSH_STR:
+            assert isinstance(operation.operand, str), 'Error in tparser.py in `program_from_tokens` or tokenizer.py in `tokenize_src`'
             assert False, 'PUSH_STR'
-        elif operation.type == OperationType.OPEN_IF:
-            cb.write('.if ')
-            cb.indent += 1
-        elif operation.type == OperationType.CLOSE_IF:
-            indentation -= 1
-            cb.write('\n.endif ')
-        elif operation.type == OperationType.CHECK_STACK_SIZE:
-            assert False, 'CHECK_STACK_SIZE'
+        elif operation.type == OperationType.PUSH_STACK_SIZE:
+            assert False, 'PUSH_STACK_SIZE'
         elif operation.type == OperationType.CHECK_STACK_SIZE_G:
             assert False, 'CHECK_STACK_SIZE_G'
-        elif operation.type == OperationType.PLUS_STACK:
-            assert False, 'PLUS_STACK'
-        elif operation.type == OperationType.MULT_STACK:
-            assert False, 'MULT_STACK'
-        elif operation.type == OperationType.PRINT_TOP:
-            #assert False, 'PRINT_TOP'
-            pass
-        elif operation.type == OperationType.SWAP_STACK:
-            assert False, 'SWAP_STACK'
-        elif operation.type == OperationType.EQUALS_STACK:
-            assert False, 'EQUALS_STACK'
-        elif operation.type == OperationType.GREATER_STACK:
-            assert False, 'GREATER_STACK'
-        elif operation.type == OperationType.LESS_STACK:
-            assert False, 'LESS_STACK'
 
-    cb.writel(';; Ends the program ;;')
+        elif operation.type == Keyword.LET:
+            assert False, 'LET'
+        elif operation.type == Keyword.IF:
+            cb.write_buffer('.if ')
+        elif operation.type == Keyword.ELSE:
+            cb.writel('\n.else ')
+        elif operation.type == Keyword.ELSEIF:
+            cb.writel('\n.else')
+            cb.write_buffer('.endif\n\n.if ')
+        elif operation.type == Keyword.DO:
+            cb.writecl('pop ecx')
+            cb.dump_buffer()
+            cb.write('ecx == 1\n')
+        elif operation.type == Keyword.END:
+            cb.writel('\n.endif ')
+
+        elif operation.type == Intrinsic.PLUS:
+            cb.writecl(';; --- PLUS --- ;;')
+            cb.writel('pop eax')
+            cb.writel('pop ebx')
+            cb.writel('add eax, ebx')
+            cb.writel('push eax')
+        elif operation.type == Intrinsic.MULTIPLY:
+            cb.writecl(';; --- MULTIPLY --- ;;')
+            cb.writel('pop eax')
+            cb.writel('pop ebx')
+            cb.writel('mul eax, ebx')
+            cb.writel('push eax')
+        elif operation.type == Intrinsic.PRINT:
+            cb.writecl(';; --- PRINT --- ;;')
+            cb.writel('pop ecx')
+            cb.writel('printf("%i", ecx)')
+        elif operation.type == Intrinsic.SWAP:
+            cb.writecl(';; --- SWAP --- ;;')
+            cb.writel('pop eax')
+            cb.writel('pop ebx')
+            cb.writel('push eax')
+            cb.writel('push ebx')
+        elif operation.type == Intrinsic.EQUALS:
+            cb.writecl(';; --- EQUALS --- ;;')
+            cb.writel('mov ecx, 0')
+            cb.writel('mov edx, 1')
+            cb.writel('pop eax')
+            cb.writel('pop ebx')
+            cb.writel('cmp eax, ebx')
+            cb.writel('cmove ecx, edx')
+            cb.writel('push ecx')
+        elif operation.type == Intrinsic.LESS:
+            cb.writecl(';; --- LESS --- ;;')
+            cb.writel('mov ecx, 0')
+            cb.writel('mov edx, 1')
+            cb.writel('pop eax')
+            cb.writel('pop ebx')
+            cb.writel('cmp ebx, eax')
+            cb.writel('cmovg ecx, edx')
+            cb.writel('push ecx')
+        elif operation.type == Intrinsic.GREATER:
+            cb.writecl(';; --- GREATER --- ;;')
+            cb.writel('mov ecx, 0')
+            cb.writel('mov edx, 1')
+            cb.writel('pop eax')
+            cb.writel('pop ebx')
+            cb.writel('cmp ebx, eax')
+            cb.writel('cmovl ecx, edx')
+            cb.writel('push ecx')
+            
+
+
+
+    cb.writel('\n;; Ends the program ;;')
     cb.writel('end start')
 
     with open(os.path.join(os.getcwd(), f'{outfile}.asm'), 'w') as out:
