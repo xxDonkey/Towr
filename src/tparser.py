@@ -96,7 +96,13 @@ def program_from_tokens(tokens: list[Token]) -> Program:
                 operand=0
             ))
         elif ctoken.type == Keyword.WHILE:
-            assert False, 'while'
+            do_str: str = KEYWORDS_INV[Keyword.DO]
+            if do_str not in rtoken_strs:
+                compiler_error(ctoken.location, '`WHILE` statement expects `DO` statement')
+            operations.append(Operation(
+                type=Keyword.WHILE,
+                operand=0
+            ))
         elif ctoken.type == Keyword.DO:
             end_str: str = KEYWORDS_INV[Keyword.END]
             else_str: str = KEYWORDS_INV[Keyword.ELSE]

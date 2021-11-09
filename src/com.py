@@ -21,6 +21,17 @@ _VARIABLE_TYPE_CONVERSIONL: dict[DataType, str] = {
     DataType.BOOL: 'byte',
     DataType.PTR: 'byte',
 }
+assert len(DATATYPES) == len(DataType), 'Unassigned datatypes'
+
+class BlockType(Enum):
+    IF      =auto()
+    WHILE   =auto()
+
+_BLOCK_TYPE_CONVERSION: dict[BlockType, str] = {
+    BlockType.IF: 'if',
+    BlockType.WHILE: 'w',
+}
+assert len(_BLOCK_TYPE_CONVERSION) == len(BlockType), 'Unassigned block types'
 
 @dataclass
 class CodeBody:
@@ -30,7 +41,7 @@ class CodeBody:
 
     def __get_indent(self) -> str:
         assert self.indent >= 0, 'impossible, error in com.py in `__com_program_win10`'
-        return ' ' * 2 * self.indent
+        return ' ' * 4 * self.indent
 
     def write(self, code: str) -> None:
         self.code_body += self.__get_indent() + code
@@ -48,6 +59,8 @@ class CodeBody:
         self.code_body += self.__get_indent() + self.buffer
         self.buffer = ''
 
+
+
 def com_program(program: Program, outfile: str) -> None:
     assert initialized, '`initialize` must be called to use com.py'
     __com_program_win10(program, outfile)
@@ -57,6 +70,7 @@ def __com_program_win10(program: Program, outfile: str) -> None:
     for o in program.operations: print(f'-- {o} --')
     cb: CodeBody = CodeBody()
     strs: list[bytes] = []
+    blocks: list[BlockType] = []
 
     cb.writel(';; Necessary initialization statements ;;')
     cb.writel('.686')
@@ -78,7 +92,7 @@ def __com_program_win10(program: Program, outfile: str) -> None:
     cb.writel('.code')
     
     cb.writel('start:')
-    cb.indent = 2
+    cb.indent = 1
 
     for operation in program.operations:
         assert len(OperationType) == 6, 'Unhandled members of `OperationType`'
@@ -121,17 +135,20 @@ def __com_program_win10(program: Program, outfile: str) -> None:
             assert False, 'FUNC'
         elif operation.type == Keyword.IF:
             cb.write_buffer('.if ')
+            blocks.append(BlockType.IF)
         elif operation.type == Keyword.ELSE:
             cb.writel('\n.else ')
         elif operation.type == Keyword.ELSEIF:
             cb.writel('\n.else')
             cb.write_buffer('.endif\n\n.if ')
+        elif operation.type == Keyword.WHILE:
+            pass
         elif operation.type == Keyword.DO:
             cb.writecl('pop ecx')
             cb.dump_buffer()
             cb.write('ecx == 1\n')
         elif operation.type == Keyword.END:
-            cb.writel('\n.endif ')
+            cb.writel('\n    .end%s ' % _BLOCK_TYPE_CONVERSION[blocks.pop()])
 
         elif operation.type == Intrinsic.PLUS:
             cb.writecl(';; --- PLUS --- ;;')
