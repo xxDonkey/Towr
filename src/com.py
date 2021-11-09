@@ -67,7 +67,7 @@ def com_program(program: Program, outfile: str) -> None:
 
 def __com_program_win10(program: Program, outfile: str) -> None:
     # print(program)
-    for o in program.operations: print(f'-- {o} --')
+    # for o in program.operations: print(f'-- {o} --')
     cb: CodeBody = CodeBody()
     strs: list[bytes] = []
     blocks: list[BlockType] = []
@@ -95,9 +95,9 @@ def __com_program_win10(program: Program, outfile: str) -> None:
     cb.indent = 1
 
     for operation in program.operations:
-        assert len(OperationType) == 6, 'Unhandled members of `OperationType`'
+        assert len(OperationType) == 7, 'Unhandled members of `OperationType`'
         assert len(Keyword) == 8 + _UNUSED_KEYWORDS, 'Unhandled members of `Keyword`'
-        assert len(Intrinsic) == 10, 'Unhandled members of `Intrinsic`'
+        assert len(Intrinsic) == 11, 'Unhandled members of `Intrinsic`'
 
         if operation.type == OperationType.PUSH_INT:
             assert isinstance(operation.operand, int), 'Error in tparser.py in `program_from_tokens` or tokenizer.py in `tokenize_src`'
@@ -123,6 +123,12 @@ def __com_program_win10(program: Program, outfile: str) -> None:
             cb.writecl(';; --- Push Variable to Stack [%s]---;;' % operation.operand)
             name = operation.operand
             cb.writel('mov eax, %s' % name)
+            cb.writel('push eax')
+        elif operation.type == OperationType.PUSH_VAR_REF:
+            assert isinstance(operation.operand, str), 'Error in tparser.py in `program_from_tokens` or tokenizer.py in `tokenize_src`'
+            cb.writecl(';; --- Push Variable Reference to Stack [%s]---;;' % operation.operand)
+            name = operation.operand
+            cb.writel('mov eax, offset %s' % name)
             cb.writel('push eax')
         elif operation.type == OperationType.PUSH_STACK_SIZE:
             assert False, 'PUSH_STACK_SIZE'
@@ -214,6 +220,11 @@ def __com_program_win10(program: Program, outfile: str) -> None:
         elif operation.type == Intrinsic.DROP:
             cb.writecl(';; --- DROP --- ;;')
             cb.writel('pop eax')
+        elif operation.type == Intrinsic.STORE: 
+            cb.writecl(';; --- STORE --- ;;')
+            cb.writel('pop eax')
+            cb.writel('pop ebx')
+            cb.writel('mov [ebx], eax')
             
     data_str: str = ''
     data_str += '\n;; --- Data Declarations --- ;;'
