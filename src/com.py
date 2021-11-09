@@ -62,7 +62,7 @@ def __com_program_win10(program: Program, outfile: str) -> None:
     for operation in program.operations:
         assert len(OperationType) == 5, 'Unhandled members of `OperationType`'
         assert len(Keyword) == 9, 'Unhandled members of `Keyword`'
-        assert len(Intrinsic) == 7, 'Unhandled members of `Intrinsic`'
+        assert len(Intrinsic) == 8, 'Unhandled members of `Intrinsic`'
 
         if operation.type == OperationType.PUSH_INT:
             assert isinstance(operation.operand, int), 'Error in tparser.py in `program_from_tokens` or tokenizer.py in `tokenize_src`'
@@ -104,6 +104,12 @@ def __com_program_win10(program: Program, outfile: str) -> None:
             cb.writel('pop eax')
             cb.writel('pop ebx')
             cb.writel('add eax, ebx')
+            cb.writel('push eax')
+        elif operation.type == Intrinsic.MINUS:
+            cb.writecl(';; --- PLUS --- ;;')
+            cb.writel('pop eax')
+            cb.writel('pop ebx')
+            cb.writel('sub eax, ebx')
             cb.writel('push eax')
         elif operation.type == Intrinsic.MULTIPLY:
             cb.writecl(';; --- MULTIPLY --- ;;')

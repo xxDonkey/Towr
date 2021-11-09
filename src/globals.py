@@ -45,6 +45,7 @@ class Keyword(Enum):
 
 class Intrinsic(Enum):
     PLUS        = auto()
+    MINUS       = auto()
     MULTIPLY    = auto()
     PRINT       = auto()
     SWAP        = auto()
@@ -122,6 +123,7 @@ assert len(KEYWORDS) == len(Keyword), 'Unassigned keywords'
 
 INTRINSICS: dict[str, Intrinsic] = {
     '+'     : Intrinsic.PLUS,
+    '-'     : Intrinsic.MINUS,
     '*'     : Intrinsic.MULTIPLY,
     '^'     : Intrinsic.PRINT,
     '~'     : Intrinsic.SWAP,

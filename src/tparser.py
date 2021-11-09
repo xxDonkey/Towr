@@ -26,6 +26,7 @@ def program_from_tokens(tokens: list[Token]) -> Program:
 
         assert len(OperationType) == 3 + _OPERATION_TYPE_NO_STATEMENTS, 'Unhandled members of `OperationType`'
         assert len(Keyword) == 9, 'Unhandled members of `Keyword`'
+        assert len(Intrinsic) == 8, 'Unhandled members of `Intrinsic`'
 
         if (ctoken.type == OperationType.PUSH_INT or
             ctoken.type == OperationType.PUSH_BOOL):
@@ -41,6 +42,7 @@ def program_from_tokens(tokens: list[Token]) -> Program:
             ))
             stack_size += 2
         elif (ctoken.type == Intrinsic.PLUS     or
+              ctoken.type == Intrinsic.MINUS    or
               ctoken.type == Intrinsic.MULTIPLY or
               ctoken.type == Intrinsic.PRINT    or
               ctoken.type == Intrinsic.EQUALS   or 
