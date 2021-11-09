@@ -25,7 +25,7 @@ def program_from_tokens(tokens: list[Token]) -> Program:
         adv: int = 1
 
         assert len(OperationType) == 3 + _OPERATION_TYPE_NO_STATEMENTS, 'Unhandled members of `OperationType`'
-        assert len(Keyword) == 9, 'Unhandled members of `Keyword`'
+        assert len(Keyword) == 10, 'Unhandled members of `Keyword`'
         assert len(Intrinsic) == 13, 'Unhandled members of `Intrinsic`'
 
         if (ctoken.type == OperationType.PUSH_INT or
@@ -76,7 +76,22 @@ def program_from_tokens(tokens: list[Token]) -> Program:
             vars.append(Variable(**value.__dict__, name=ntoken.value))
             adv = len(rtokens) + 3 # rtokens does not include var name or end keyword, we want to skip end
         elif ctoken.type == Keyword.FUNC:
-            assert False, 'TODO: `FUNC` not implemented'
+            params_str: str = KEYWORDS_INV[Keyword.PARAMS]
+            if params_str not in rtoken_strs:
+                compiler_error(ctoken.location, '`FUNC` statement expects params')
+            pidx = rtoken_strs.index(params_str)
+            rtokens = rtokens[:pidx]
+            ntoken = rtokens.pop(0)
+            CHECK_ASSIGNMENT(ntoken)
+            params = [token.value for token in rtokens]
+            funcs.append(Func(
+                name=ntoken.value,
+                params=params,
+                operations=[],
+                vars=[],
+                location=ctoken.location
+            ))
+            adv = len(rtokens) + 2
         elif ctoken.type == Keyword.IF:
             do_str: str = KEYWORDS_INV[Keyword.DO]
             if do_str not in rtoken_strs:
@@ -145,6 +160,24 @@ def program_from_tokens(tokens: list[Token]) -> Program:
                 type=Keyword.END,
                 operand=0
             ))
+        elif ctoken.type == Keyword.PARAMS:
+            end_str: str = KEYWORDS_INV[Keyword.END]
+            if end_str not in rtoken_strs:
+                compiler_error(ctoken.location, '`FUNC` statement never closed')
+            depth: int = 0
+            i: int = 0
+            for i, token in enumerate(rtokens):
+                if token.type == Keyword.LET or token.type == Keyword.IF or token.type == Keyword.WHILE:
+                    depth += 1
+                elif token.type == Keyword.END:
+                    depth -= 1
+                if depth < 0:
+                    break
+            btokens: list[Token] = rtokens[:i]
+            fprogram = program_from_tokens(btokens)
+            funcs[-1].operations = fprogram.operations
+            funcs[-1].vars = fprogram.vars
+            adv = len(btokens) + 2
         elif ctoken.value in (var_strs := [var.name for var in vars]):
             var: Variable = vars[var_strs.index(ctoken.value)]
             operations.append(Operation(

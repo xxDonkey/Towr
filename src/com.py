@@ -1,6 +1,6 @@
 import os
 from globals import *
-from syscalls import SYSCALLS
+# from syscalls import SYSCALLS
 
 initialized: bool = False
 stack_limit: int
@@ -10,7 +10,7 @@ def intiialize(_stack_limit: int) -> None:
     stack_limit = _stack_limit
     initialized = True
 
-_UNUSED_KEYWORDS: int = 1 # import is dealt with elsewhere
+_UNUSED_KEYWORDS: int = 2 # import is dealt with elsewhere, params not used yet
 
 _BUILD_WIN10: str = 'ml /c /coff /Cp %s.asm'
 _LINK_WIN10: str = 'link /subsystem:console %s.obj'
@@ -63,15 +63,13 @@ class CodeBody:
         self.code_body += self.__get_indent() + self.buffer
         self.buffer = ''
 
-
-
 def com_program(program: Program, outfile: str) -> None:
     assert initialized, '`initialize` must be called to use com.py'
     __com_program_win10(program, outfile)
 
-def __com_program_win10(program: Program, outfile: str) -> None:
-    # print(program)
-    # for o in program.operations: print(f'-- {o} --')
+def __com_program_win10(program: Program, outfile: str, compile: bool=True) -> Union[str, None]:
+    for o in program.operations: print(f'-- {o} --')
+    
     cb: CodeBody = CodeBody()
     strs: list[bytes] = []
     blocks: list[BlockType] = []
@@ -93,14 +91,30 @@ def __com_program_win10(program: Program, outfile: str) -> None:
     cb.writel(_DATA_ESCAPE_SEQUENCE)
 
     cb.writel('\n;; --- Code Body ---;;')
-    cb.writel('.code')
+    cb.writel('.code\n')
     
-    cb.writel('start:')
-    cb.indent = 1
-
     assert len(OperationType) == 7, 'Unhandled members of `OperationType`'
     assert len(Keyword) == 8 + _UNUSED_KEYWORDS, 'Unhandled members of `Keyword`'
     assert len(Intrinsic) == 13, 'Unhandled members of `Intrinsic`'
+
+    # TODO: variables, returns
+    for func in program.funcs:
+        cb.writel('%s proc %s' % (func.name, ', '.join(f'{param}:dword' for param in func.params)))
+        func_code = __com_program_win10(Program(
+            operations=func.operations,
+            vars=func.vars,
+            funcs=[],
+            tokens=[]
+        ), '', compile=False)
+        assert func_code is not None, 'impossible'
+        sidx = func_code.index('start:') + 6
+        eidx = func_code.index(';; Ends the program ;;')
+        body = '    %s' % func_code[sidx:eidx].strip()
+        cb.writel(body)
+        cb.writel('%s endp' % func.name)
+    
+    cb.writel('\nstart:')
+    cb.indent = 1
     for operation in program.operations:
         if operation.type == OperationType.PUSH_INT:
             assert isinstance(operation.operand, int), 'Error in tparser.py in `program_from_tokens` or tokenizer.py in `tokenize_src`'
@@ -145,8 +159,6 @@ def __com_program_win10(program: Program, outfile: str) -> None:
 
         elif operation.type == Keyword.LET:
             assert False, 'LET'
-        elif operation.type == Keyword.FUNC:
-            assert False, 'FUNC'
         elif operation.type == Keyword.IF:
             cb.write_buffer('.if ')
             blocks.append(BlockType.IF)
@@ -251,6 +263,7 @@ def __com_program_win10(program: Program, outfile: str) -> None:
     data_str += '\nstacksize dword 0'
     data_str += '\nnewline db " ", 10, 0'
     for var in program.vars:
+        data_str += '\n;; --- Create [%s] With Value %s ---;;' % (var.name, str(var.value))
         data_str += '\n%s %s %i' % (var.name, _VARIABLE_TYPE_CONVERSIONL[var.datatype], var.value) 
     for i, Str in enumerate(strs):
         data_str += '\nstr_%i db "%s"' % (i, Str.decode('utf-8'))
@@ -259,9 +272,13 @@ def __com_program_win10(program: Program, outfile: str) -> None:
     cb.indent = 0
     cb.writel('\n;; Ends the program ;;')
     cb.writel('end start')
+    cb.writel('end')
 
-    with open(os.path.join(os.getcwd(), f'{outfile}.asm'), 'w') as out:
-        out.write(cb.code_body)
+    if compile:
+        with open(os.path.join(os.getcwd(), f'{outfile}.asm'), 'w') as out:
+            out.write(cb.code_body)
+    else:
+        return cb.code_body
 
     filepath = os.path.join(os.getcwd(), outfile)
     os.system(_BUILD_WIN10 % filepath)

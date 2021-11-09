@@ -44,6 +44,7 @@ class Keyword(Enum):
     DO          = auto()
     END         = auto()
     IMPORT      = auto()
+    PARAMS      = auto()
 
 class Intrinsic(Enum):
     PLUS        = auto()
@@ -90,7 +91,10 @@ class Operation:
 
 @dataclass
 class Func:
+    name: str
+    params: list[str]
     operations: list[Operation]
+    vars: list[Variable]
     location: Location
 
 @dataclass
@@ -124,6 +128,7 @@ KEYWORDS: dict[str, Keyword] = {
     'func'  : Keyword.FUNC,
     'end'   : Keyword.END,
     'import': Keyword.IMPORT,
+    'params': Keyword.PARAMS,
 }
 KEYWORDS_INV: dict[Keyword, str] = {v: k for k, v in KEYWORDS.items()}
 assert len(KEYWORDS) == len(Keyword), 'Unassigned keywords'
