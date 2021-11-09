@@ -3,7 +3,7 @@ from globals import *
 from sim import sim_tokens
 from tokenizer import tokenize_src
 
-OPERATION_TYPE_NO_STATEMENTS: int = 3
+_OPERATION_TYPE_NO_STATEMENTS: int = 2
 
 def rindex(tokens: list[str], value: str) -> int:
     for index, item in enumerate(reversed(tokens)):
@@ -18,15 +18,14 @@ def program_from_tokens(tokens: list[Token]) -> Program:
     
     stack_size: int = 0
     tp: int = 0
-    in_if: bool = False
     while tp < len(tokens):
         ctoken = tokens[tp]
         rtokens: list[Token] = tokens[tp + 1:]
         rtoken_strs: list[str] = [token.value for token in rtokens]
         adv: int = 1
 
-        assert len(OperationType) == 11 + OPERATION_TYPE_NO_STATEMENTS, 'Unhandled members of `OperationType`'
-        assert len(Keyword) == 8, 'Unhandled members of `Keyword`'
+        assert len(OperationType) == 3 + _OPERATION_TYPE_NO_STATEMENTS, 'Unhandled members of `OperationType`'
+        assert len(Keyword) == 9, 'Unhandled members of `Keyword`'
 
         if (ctoken.type == OperationType.PUSH_INT or
             ctoken.type == OperationType.PUSH_BOOL):
@@ -72,32 +71,36 @@ def program_from_tokens(tokens: list[Token]) -> Program:
         elif ctoken.type == Keyword.FUNC:
             assert False, 'TODO: `FUNC` not implemented'
         elif ctoken.type == Keyword.IF:
-            in_if = True
             do_str: str = KEYWORDS_INV[Keyword.DO]
             if do_str not in rtoken_strs:
                 compiler_error(ctoken.location, '`IF` statement expects `DO` statement')
-            didx = rtoken_strs.index(do_str)
-            rtokens = rtokens[:didx]
             operations.append(Operation(
                 type=Keyword.IF,
                 operand=0
             ))
-            adv = len(rtokens) + 1
         elif ctoken.type == Keyword.ELSE:
-            assert False, 'else'
+            operations.append(Operation(
+                type=Keyword.ELSE,
+                operand=0
+            ))
+        elif ctoken.type == Keyword.ELSEIF:
+            do_str: str = KEYWORDS_INV[Keyword.DO]
+            if do_str not in rtoken_strs:
+                compiler_error(ctoken.location, '`ELSEIF` statement expects `DO` statement')
+            operations.append(Operation(
+                type=Keyword.ELSEIF,
+                operand=0
+            ))
         elif ctoken.type == Keyword.WHILE:
             assert False, 'while'
         elif ctoken.type == Keyword.DO:
             end_str: str = KEYWORDS_INV[Keyword.END]
             else_str: str = KEYWORDS_INV[Keyword.ELSE]
-            if end_str not in rtoken_strs and else_str not in rtoken_strs:
+            elseif_str: str = KEYWORDS_INV[Keyword.ELSEIF]
+            if end_str not in rtoken_strs and else_str not in rtoken_strs and elseif_str not in rtoken_strs:
                 compiler_error(ctoken.location, '`IF` statement never closed')
             operations.append(Operation(
-                type=OperationType.CHECK_STACK_SIZE_G,
-                operand=0
-            ))
-            operations.append(Operation(
-                type=Keyword.IF,
+                type=Keyword.DO,
                 operand=0
             ))
         elif ctoken.type == Keyword.IMPORT:
@@ -121,12 +124,10 @@ def program_from_tokens(tokens: list[Token]) -> Program:
             funcs += program.funcs
             adv = 2
         elif ctoken.type == Keyword.END:
-            if in_if:
-                operations.append(Operation(
-                type=Keyword.IF,
+            operations.append(Operation(
+                type=Keyword.END,
                 operand=0
-                ))
-                in_if = False
+            ))
         elif ctoken.value in (var_strs := [var.name for var in vars]):
             var: Variable = vars[var_strs.index(ctoken.value)]
             if var.datatype == DataType.INT:

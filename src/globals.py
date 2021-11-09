@@ -29,7 +29,7 @@ class OperationType(Enum):
     PUSH_INT            = auto()
     PUSH_BOOL           = auto()
     PUSH_STR            = auto()
-    CHECK_STACK_SIZE    = auto()
+    PUSH_STACK_SIZE    = auto()
     CHECK_STACK_SIZE_G  = auto()
 
 class Keyword(Enum):
@@ -37,6 +37,7 @@ class Keyword(Enum):
     FUNC        = auto()
     IF          = auto()
     ELSE        = auto()
+    ELSEIF      = auto()
     WHILE       = auto()
     DO          = auto()
     END         = auto()
@@ -109,6 +110,7 @@ KEYWORDS: dict[str, Keyword] = {
     'let'   : Keyword.LET,
     'if'    : Keyword.IF,
     'else'  : Keyword.ELSE,
+    'elseif': Keyword.ELSEIF,
     'while' : Keyword.WHILE,
     'do'    : Keyword.DO,
     'func'  : Keyword.FUNC,
