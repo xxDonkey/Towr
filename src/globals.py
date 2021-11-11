@@ -68,6 +68,8 @@ class Intrinsic(Enum):
     READ        = auto()
     INC         = auto()
     DEC         = auto()
+    STDOUT      = auto()
+    STDERR      = auto()
 
 class DataType(Enum):
     INT         = auto()
@@ -160,6 +162,8 @@ INTRINSICS: dict[str, Intrinsic] = {
     '@'     : Intrinsic.READ,
     '++'    : Intrinsic.INC,
     '--'    : Intrinsic.DEC,
+    'stdout': Intrinsic.STDOUT,
+    'stderr': Intrinsic.STDERR,
 }
 assert len(INTRINSICS) == len(Intrinsic), 'Unassigned intrinsics'
 

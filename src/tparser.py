@@ -25,7 +25,7 @@ def program_from_tokens(tokens: list[Token], start_vars: list[Variable]=[]) -> P
     
         assert len(OperationType) == 3 + _OPERATION_TYPE_NO_STATEMENTS, 'Unhandled members of `OperationType`'
         assert len(Keyword) == 11, 'Unhandled members of `Keyword`'
-        assert len(Intrinsic) == 15, 'Unhandled members of `Intrinsic`'
+        assert len(Intrinsic) == 17, 'Unhandled members of `Intrinsic`'
 
         if (ctoken.type == OperationType.PUSH_INT or
             ctoken.type == OperationType.PUSH_BOOL):

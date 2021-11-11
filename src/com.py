@@ -66,7 +66,7 @@ def com_program(program: Program, outfile: str) -> None:
 def __com_program_win10(program: Program, outfile: str, compile: bool=True, debug_output:bool=False) -> Union[str, None]:
     assert len(OperationType) == 9, 'Unhandled members of `OperationType`'
     assert len(Keyword) == 6 + _UNUSED_KEYWORDS, 'Unhandled members of `Keyword`'
-    assert len(Intrinsic) == 15, 'Unhandled members of `Intrinsic`'
+    assert len(Intrinsic) == 17, 'Unhandled members of `Intrinsic`'
     
     debug_output = True
 
@@ -111,14 +111,17 @@ def __com_program_win10(program: Program, outfile: str, compile: bool=True, debu
                 cb.writel('mov eax, %i' % operation.operand)
                 cb.writel('push eax')
             if operation.type == OperationType.PUSH_STR:
+                # TODO: fix in statements
                 assert isinstance(operation.operand, str), 'Error in tparser.py in `program_from_tokens` or tokenizer.py in `tokenize_src`'
                 cb.writecl(';; --- Push STR [%s]---;;' % operation.operand)
                 encoded = operation.operand.encode('utf-8')
                 size = len(encoded)
+                exists = encoded in strs
                 cb.writel('mov eax, %i' % size)
                 cb.writel('push eax')
-                cb.writel('push offset str_%i' % len(strs))
-                strs.append(encoded)
+                cb.writel('push offset str_%i' % (len(strs) if not exists else strs.index(encoded)))
+                if not exists:
+                    strs.append(encoded)
             elif operation.type == OperationType.VAR_REF:
                 assert isinstance(operation.operand, str), 'Error in tparser.py in `program_from_tokens` or tokenizer.py in `tokenize_src`'
                 cb.writecl(';; --- Push Variable to Stack [%s]---;;' % operation.operand)
@@ -192,7 +195,8 @@ def __com_program_win10(program: Program, outfile: str, compile: bool=True, debu
                 block_body = ''
                 if len(operation.args) > 0:
                     assert isinstance(operation.args[0], Operation), 'Error in tparser.py in `program_from_tokens`'
-                    block_body, _ = generate_main_code_body(operation.args)
+                    block_body, _strs = generate_main_code_body(operation.args)
+                    strs += _strs
                 cb.write_buffer(block_body, 1)
                 cblock = BlockType.ELSE
             elif operation.type == Keyword.ELSEIF:
@@ -218,7 +222,8 @@ def __com_program_win10(program: Program, outfile: str, compile: bool=True, debu
                 end_suffix = 'if'
                 if len(operation.args) > 0:
                     assert isinstance(operation.args[0], Operation), 'Error in tparser.py in `program_from_tokens`'
-                    block_body, _ = generate_main_code_body(operation.args)
+                    block_body, _strs = generate_main_code_body(operation.args)
+                    strs += _strs
                 if cblock == BlockType.IF:
                     cb.writecl(';; --- Otherwise Jump to _enidf_%i --- ;;' % ifblock_c)
                     cb.write_buffer('jmp _endif_%i\n' % ifblock_c, 1)
@@ -230,7 +235,8 @@ def __com_program_win10(program: Program, outfile: str, compile: bool=True, debu
                 elif cblock == BlockType.WHILE:
                     cb.write_buffer('\n_while_%i:\n' % ifblock_c, 1)
                     cb.write_buffer(block_body, 1)
-                    condition_body, _ = generate_main_code_body(while_cond[:-1])
+                    condition_body, _strs = generate_main_code_body(while_cond[:-1])
+                    strs += _strs
                     cb.write_buffer(condition_body, 1)
                     cb.write_buffer('\n    ;; --- Jump to _while_%i if True --- ;;'% ifblock_c, 1)
                     cb.write_buffer('\n    pop eax\n', 1)
@@ -347,6 +353,13 @@ def __com_program_win10(program: Program, outfile: str, compile: bool=True, debu
                 cb.writel('pop eax')
                 cb.writel('dec eax')
                 cb.writel('push eax')
+            elif operation.type == Intrinsic.STDOUT:
+                cb.writecl(';; --- Prints From Top of Stack to StdOut --- ;;')
+                cb.writel('pop eax')
+                cb.writel('invoke StdOut, eax')
+                cb.writel('push eax')
+            elif operation.type == Intrinsic.STDERR:
+                assert False, 'STDERR'
 
         ifblock_c_global = ifblock_c
         wblock_c_global = wblock_c
@@ -388,7 +401,7 @@ def __com_program_win10(program: Program, outfile: str, compile: bool=True, debu
     main_body, _strs = generate_main_code_body(program.operations)
     cb.writel(main_body)
     strs += _strs
-            
+    print(strs)
     data_str: str = ''
     data_str += '\n;; --- Data Declarations --- ;;'
     data_str += '\n.data'
@@ -396,7 +409,7 @@ def __com_program_win10(program: Program, outfile: str, compile: bool=True, debu
     data_str += '\nstacksize dword 0'
     data_str += '\n\n;; --- String Literal Data --- ;;'
     for i, Str in enumerate(strs):
-        data_str += '\nstr_%i db "%s"' % (i, Str.decode('utf-8'))
+        data_str += '\nstr_%i db "%s", 0' % (i, Str.decode('utf-8'))
     data_str += '\n\n;; --- Uninitialized Data Declarations --- ;;'
     data_str += '\n.data?'
     data_str += '\n\n;; --- Variable Data --- ;;'
