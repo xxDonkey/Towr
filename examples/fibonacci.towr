@@ -1,0 +1,14 @@
+let n 10 end
+let i 0 end
+let v1 0 end
+let v2 1 end
+let t 0 end
+
+while i n < do
+    &t v1 =
+    t ^
+    &v1 v1 v2 + =
+    &v2 t =
+
+    &i i ++ =
+end
