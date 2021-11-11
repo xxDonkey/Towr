@@ -11,9 +11,9 @@ def rindex(tokens: list[str], value: str) -> int:
             return len(tokens) - index - 1
     return -1
 
-def program_from_tokens(tokens: list[Token]) -> Program:
+def program_from_tokens(tokens: list[Token], start_vars: list[Variable]=[]) -> Program:
     operations: list[Operation] = []
-    vars: list[Variable]        = []
+    vars: list[Variable]        = start_vars
     funcs: list[Func]           = []
     stack_size: int = 0
     tp: int = 0
@@ -22,7 +22,7 @@ def program_from_tokens(tokens: list[Token]) -> Program:
         rtokens: list[Token] = tokens[tp + 1:]
         rtoken_strs: list[str] = [token.value for token in rtokens]
         adv: int = 1
-
+    
         assert len(OperationType) == 3 + _OPERATION_TYPE_NO_STATEMENTS, 'Unhandled members of `OperationType`'
         assert len(Keyword) == 11, 'Unhandled members of `Keyword`'
         assert len(Intrinsic) == 15, 'Unhandled members of `Intrinsic`'
@@ -132,12 +132,9 @@ def program_from_tokens(tokens: list[Token]) -> Program:
             do_str: str = KEYWORDS_INV[Keyword.DO]
             if do_str not in rtoken_strs:
                 compiler_error(ctoken.location, '`WHILE` statement expects `DO` statement', __file__)
-            rtokens = rtokens[:rtoken_strs.index(do_str)]
-            program = program_from_tokens(rtokens)
             operations.append(Operation(
                 type=Keyword.WHILE,
-                operand=0,
-                args=program.operations
+                operand=0
             ))
         elif ctoken.type == Keyword.DO:
             end_str: str = KEYWORDS_INV[Keyword.END]

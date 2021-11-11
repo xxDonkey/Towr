@@ -66,25 +66,32 @@ def __com_program_win10(program: Program, outfile: str, compile: bool=True, debu
     assert len(Keyword) == 6 + _UNUSED_KEYWORDS, 'Unhandled members of `Keyword`'
     assert len(Intrinsic) == 15, 'Unhandled members of `Intrinsic`'
     
+    debug_output = True
+
     if debug_output:
         with open('out.txt', 'w') as f:
             for op in program.operations:
                 f.write('%s\n' % op.__str__())
 
-    global ifc_global
-    ifc_global = 0
+    global block_c_global
+    block_c_global = 0
     vars: list[Variable] = []
+    #compile = False
 
     def generate_main_code_body(operations: list[Operation], indent:int=1) -> Tuple[str, list[bytes]]:
-        global ifc_global
+        global block_c_global
         cb = CodeBody()
         cb.indent = indent
         strs: list[bytes] = []
         while_cond: list[Operation] = []
-        if_c = ifc_global
+        block_c = block_c_global
         elseif_c: int = 0
         cblock: BlockType = BlockType.NONE
         for operation in operations:
+            if cblock == BlockType.WHILE:
+                while_cond.append(operation)
+            else:
+                while_cond.clear()
             if operation.type == OperationType.PUSH_INT:
                 assert isinstance(operation.operand, int), 'Error in tparser.py in `program_from_tokens` or tokenizer.py in `tokenize_src`'
                 cb.writecl(';; --- Push INT [%i] ---;;' % operation.operand)
@@ -160,17 +167,17 @@ def __com_program_win10(program: Program, outfile: str, compile: bool=True, debu
                 cb.writel('mov _%s, eax' % name)
                 vars.append(Variable(name=name, value=value, malloc=True))
             elif operation.type == Keyword.IF:
-                cb.writecl(';; --- Check Condition for _if_%i --- ;;' % if_c)
-                cb.write_buffer('\n    ;; --- Jump to _if_%i if True --- ;;'% if_c)
+                cb.writecl(';; --- Check Condition for _if_%i --- ;;' % block_c)
+                cb.write_buffer('\n    ;; --- Jump to _if_%i if True --- ;;'% block_c)
                 cb.write_buffer('\n    pop eax\n')
                 cb.write_buffer('    mov ebx, 1\n')
                 cb.write_buffer('    cmp eax, ebx\n')
-                cb.write_buffer('    je _if_%i\n' % if_c)
+                cb.write_buffer('    je _if_%i\n' % block_c)
                 cblock = BlockType.IF
             elif operation.type == Keyword.ELSE:
-                cb.writecl('jmp _else_%i' % if_c)
-                cb.writel(';; --- Jump to _else_%i if True --- ;;' % if_c)
-                cb.write_buffer('\n_else_%i:\n' % if_c, 1)
+                cb.writecl(';; --- Otherwise Jump to _else_%i --- ;;' % block_c)
+                cb.writel('jmp _else_%i' % block_c)
+                cb.write_buffer('\n_else_%i:\n' % block_c, 1)
                 block_body = ''
                 if len(operation.args) > 0:
                     assert isinstance(operation.args[0], Operation), 'Error in tparser.py in `program_from_tokens`'
@@ -178,21 +185,22 @@ def __com_program_win10(program: Program, outfile: str, compile: bool=True, debu
                 cb.write_buffer(block_body, 1)
                 cblock = BlockType.ELSE
             elif operation.type == Keyword.ELSEIF:
-                cb.writecl(';; --- Check Condition for _elseif_%i_%i --- ;;' % (if_c, elseif_c))
-                cb.write_buffer('\n    ;; --- Jump to _elseif_%i_%i if True --- ;;' % (if_c, elseif_c))
+                cb.writecl(';; --- Check Condition for _elseif_%i_%i --- ;;' % (block_c, elseif_c))
+                cb.write_buffer('\n    ;; --- Jump to _elseif_%i_%i if True --- ;;' % (block_c, elseif_c))
                 cb.write_buffer('\n    pop eax\n')
                 cb.write_buffer('    mov ebx, 1\n')
                 cb.write_buffer('    cmp eax, ebx\n')
-                cb.write_buffer('    je _elseif_%i_%i\n' % (if_c, elseif_c))
+                cb.write_buffer('    je _elseif_%i_%i\n' % (block_c, elseif_c))
                 elseif_c += 1
                 cblock = BlockType.ELSEIF
             elif operation.type == Keyword.WHILE:
-                assert False, 'TODO: Finish implementation'
-                assert len(operation.args) > 0, 'Error in tparser.py in `program_from_tokens` or tokenizer.py in `tokenize_src`'
-                while_cond = operation.args
-                print(while_cond)
-                cb.write_buffer('.while ')
-                blocks.append(BlockType.WHILE)
+                cb.writecl(';; --- Check Condition for _while_%i --- ;;' % block_c)
+                cb.write_buffer('\n    ;; --- Jump to _while_%i if True --- ;;'% block_c)
+                cb.write_buffer('\n    pop eax\n')
+                cb.write_buffer('    mov ebx, 1\n')
+                cb.write_buffer('    cmp eax, ebx\n')
+                cb.write_buffer('    je _while_%i\n' % block_c)
+                cblock = BlockType.WHILE
             elif operation.type == Keyword.DO:
                 cb.dump_buffer()
                 block_body = ''
@@ -200,18 +208,29 @@ def __com_program_win10(program: Program, outfile: str, compile: bool=True, debu
                     assert isinstance(operation.args[0], Operation), 'Error in tparser.py in `program_from_tokens`'
                     block_body, _ = generate_main_code_body(operation.args)
                 if cblock == BlockType.IF:
-                    cb.write_buffer('\n_if_%i:\n' % if_c, 1)
+                    cb.write_buffer('\n_if_%i:\n' % block_c, 1)
+                    cb.write_buffer(block_body, 1)
                 elif cblock == BlockType.ELSEIF:
-                    cb.write_buffer('\n_elseif_%i_%i:\n' % (if_c, elseif_c - 1), 1)
+                    cb.write_buffer('\n_elseif_%i_%i:\n' % (block_c, elseif_c - 1), 1)
+                    cb.write_buffer(block_body, 1)
+                elif cblock == BlockType.WHILE:
+                    cb.write_buffer('\n_while_%i:\n' % block_c, 1)
+                    cb.write_buffer(block_body, 1)
+                    condition_body, _ = generate_main_code_body(while_cond[:-1])
+                    cb.write_buffer(condition_body, 1)
+                    cb.write_buffer('\n    ;; --- Jump to _while_%i if True --- ;;'% block_c, 1)
+                    cb.write_buffer('\n    pop eax\n', 1)
+                    cb.write_buffer('    mov ebx, 1\n', 1)
+                    cb.write_buffer('    cmp eax, ebx\n', 1)
+                    cb.write_buffer('    je _while_%i\n' % block_c, 1)
                 else:
                     assert False, 'impossible'
-                cb.write_buffer(block_body, 1)
                 cb.write_buffer('\n    ;; --- Jump Out of the IF-ELSEIF-ELSE Statement --- ;;', 1)
-                cb.write_buffer('\n    jmp _end_%i\n' % if_c, 1)
+                cb.write_buffer('\n    jmp _end_%i\n' % block_c, 1)
             elif operation.type == Keyword.END:
                 cb.dump_buffer(1)
-                cb.writel('\n_end_%i:' % if_c)
-                if_c += 1
+                cb.writel('\n_end_%i:' % block_c)
+                block_c += 1
                 # assert False, 'TODO: Finish implementation'
 
             elif operation.type == Intrinsic.PLUS:
@@ -243,7 +262,7 @@ def __com_program_win10(program: Program, outfile: str, compile: bool=True, debu
             elif operation.type == Intrinsic.PRINT:
                 cb.writecl(';; --- PRINT --- ;;')
                 cb.writel('pop eax')
-                cb.writel('printf("%i\n", eax)')
+                cb.writel('printf("%i\\n", eax)')
             elif operation.type == Intrinsic.SWAP:
                 cb.writecl(';; --- SWAP --- ;;')
                 cb.writel('pop eax')
@@ -306,7 +325,7 @@ def __com_program_win10(program: Program, outfile: str, compile: bool=True, debu
                 cb.writel('dec eax')
                 cb.writel('push eax')
 
-        ifc_global = if_c
+        block_c_global = block_c
         return (cb.code_body, strs)
     
     cb: CodeBody = CodeBody()
