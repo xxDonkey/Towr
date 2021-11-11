@@ -72,6 +72,7 @@ class Intrinsic(Enum):
     DEC         = auto()
     STDOUT      = auto()
     STDERR      = auto()
+    BYTE        = auto()
 
 class DataType(Enum):
     INT         = auto()
@@ -168,6 +169,7 @@ INTRINSICS: dict[str, Intrinsic] = {
     '--'    : Intrinsic.DEC,
     'stdout': Intrinsic.STDOUT,
     'stderr': Intrinsic.STDERR,
+    'sizeof_byte': Intrinsic.BYTE,
 }
 assert len(INTRINSICS) == len(Intrinsic), 'Unassigned intrinsics'
 

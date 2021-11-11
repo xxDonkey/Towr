@@ -25,7 +25,7 @@ def program_from_tokens(tokens: list[Token], start_vars: list[Variable]=[]) -> P
     
         assert len(OperationType) == 3 + _OPERATION_TYPE_NO_STATEMENTS, 'Unhandled members of `OperationType`'
         assert len(Keyword) == 13, 'Unhandled members of `Keyword`'
-        assert len(Intrinsic) == 17, 'Unhandled members of `Intrinsic`'
+        assert len(Intrinsic) == 18, 'Unhandled members of `Intrinsic`'
 
         if (ctoken.type == OperationType.PUSH_INT or
             ctoken.type == OperationType.PUSH_BOOL):
@@ -227,16 +227,23 @@ def program_from_tokens(tokens: list[Token], start_vars: list[Variable]=[]) -> P
         # variable
         elif ctoken.value in (var_strs := [var.name for var in vars]):
             var: Variable = vars[var_strs.index(ctoken.value)]
+            typ = 'val'
+            if var.malloc:
+                typ = 'ref'
             operations.append(Operation(
                 type=OperationType.VAR_REF,
-                operand=var.name
+                operand='%s/%s' % (var.name, typ)
             ))
         # variable reference
         elif ctoken.value.startswith('&') and (val := ctoken.value[1:]) in (var_strs := [var.name for var in vars]):
             var: Variable = vars[var_strs.index(val)]
+            typ = 'val'
+            if var.malloc:
+                print('MALLOC: %s' % var.name)
+                typ = 'ref'
             operations.append(Operation(
                 type=OperationType.PUSH_VAR_REF,
-                operand=var.name
+                operand='%s/%s' % (var.name, typ)
             ))
         # function
         elif ctoken.value in (funcs_strs := [func.name for func in funcs]):

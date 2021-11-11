@@ -21,6 +21,10 @@ _EXECUTE_WIN10: str = '%s.exe'
 _DATA_ESCAPE_SEQUENCE: str = '|!DATA!|'
 _VARIABLE_TYPE = 'dword'
 
+_BYTE_SIZE: dict[str, int] = {
+    'win10,x86': 64,
+}
+
 class BlockType(Enum):
     NONE    = auto()
     IF      = auto()
@@ -61,17 +65,18 @@ class CodeBody:
 
 def com_program(program: Program, outfile: str) -> None:
     assert initialized, '`initialize` must be called to use com.py'
-    __com_program_win10(program, outfile)
+    __com_program_win10_x86(program, outfile)
 
-def __com_program_win10(program: Program, outfile: str, compile: bool=True, debug_output:bool=False) -> Union[str, None]:
+def __com_program_win10_x86(program: Program, outfile: str, compile: bool=True, debug_output:bool=False) -> Union[str, None]:
     assert len(OperationType) == 9, 'Unhandled members of `OperationType`'
     assert len(Keyword) == 8 + _UNUSED_KEYWORDS, 'Unhandled members of `Keyword`'
-    assert len(Intrinsic) == 17, 'Unhandled members of `Intrinsic`'
+    assert len(Intrinsic) == 18, 'Unhandled members of `Intrinsic`'
     
     debug_output = True
+    # compile = False
 
     if debug_output:
-        with open('test/out.txt', 'w') as f:
+        with open('out.txt', 'w') as f:
             for op in program.operations:
                 f.write('%s\n' % op.__str__())
 
@@ -85,7 +90,6 @@ def __com_program_win10(program: Program, outfile: str, compile: bool=True, debu
     iota_global = 0
     
     vars: list[Variable] = []
-    #compile = False
 
     def generate_main_code_body(operations: list[Operation], indent:int=1) -> Tuple[str, list[bytes]]:
         global ifblock_c_global
@@ -129,14 +133,26 @@ def __com_program_win10(program: Program, outfile: str, compile: bool=True, debu
                     strs.append(encoded)
             elif operation.type == OperationType.VAR_REF:
                 assert isinstance(operation.operand, str), 'Error in tparser.py in `program_from_tokens` or tokenizer.py in `tokenize_src`'
-                cb.writecl(';; --- Push Variable to Stack [%s]---;;' % operation.operand)
-                cb.writel('mov eax, _%s' % operation.operand)
-                cb.writel('mov edx, [eax]')
+                name, typ = operation.operand.split('/')
+                cb.writecl(';; --- Push Variable to Stack [%s]---;;' % name)
+                if typ == 'val':
+                    cb.writel('mov eax, _%s' % name)
+                    cb.writel('mov edx, [eax]')
+                elif typ == 'ref':
+                    cb.writel('mov edx, _%s' % name)
+                else:
+                    assert False, 'Error in tparser.py in `program_from_tokens` or tokenizer.py in `tokenize_src`'
                 cb.writel('push edx')
             elif operation.type == OperationType.PUSH_VAR_REF:
                 assert isinstance(operation.operand, str), 'Error in tparser.py in `program_from_tokens` or tokenizer.py in `tokenize_src`'
-                cb.writecl(';; --- Push Variable Reference to Stack [%s]---;;' % operation.operand)
-                cb.writel('mov eax, _%s' % operation.operand)
+                name, typ = operation.operand.split('/')
+                cb.writecl(';; --- Push Variable Reference to Stack [%s]---;;' % name)
+                if typ == 'val':
+                    cb.writel('mov eax, _%s' % name)
+                elif typ == 'ref':
+                    cb.writel('mov eax, offset _%s' % name)
+                else:
+                    assert False, 'Error in tparser.py in `program_from_tokens` or tokenizer.py in `tokenize_src`'
                 cb.writel('push eax')
             elif operation.type == OperationType.FUNC_CALL:
                 assert isinstance(operation.operand, int), 'Error in tparser.py in `program_from_tokens` or tokenizer.py in `tokenize_src`'
@@ -167,8 +183,8 @@ def __com_program_win10(program: Program, outfile: str, compile: bool=True, debu
                 value, name = (operation.operand.split('/'))
                 assert IS_INT(value), 'Error in tparser.py in `program_from_tokens`'
                 value = int(value)
-                cb.writecl(';; --- Allocate 4 Bytes of Data for [%s] ---;;' % name)
-                cb.writel('invoke crt_malloc, 4')
+                cb.writecl(';; --- Allocate 1 Bytes of Data for [%s] ---;;' % name)
+                cb.writel('invoke crt_malloc, 1')
                 cb.writel('mov _%s, eax' % name)
                 cb.writel('mov ebx, %i' % value)
                 cb.writel('mov [eax], ebx')
@@ -181,6 +197,8 @@ def __com_program_win10(program: Program, outfile: str, compile: bool=True, debu
                 cb.writecl(';; --- Allocate %i Bytes of Data for [%s] ---;;' % (value, name))
                 cb.writel('invoke crt_malloc, %i' % value)
                 cb.writel('mov _%s, eax' % name)
+                cb.writel('mov ebx, 0')
+                cb.writel('mov [eax], ebx')
                 vars.append(Variable(name=name, value=value, malloc=True))
             elif operation.type == Keyword.IF:
                 cb.writecl(';; --- Check Condition for _if_%i --- ;;' % ifblock_c)
@@ -376,6 +394,12 @@ def __com_program_win10(program: Program, outfile: str, compile: bool=True, debu
                 cb.writel('push eax')
             elif operation.type == Intrinsic.STDERR:
                 assert False, 'STDERR'
+            elif operation.type == Intrinsic.BYTE:
+                size = _BYTE_SIZE['win10,x86']
+                cb.writecl(';; --- Push Byte Size [%i] ---;;' % size)
+                cb.writel('mov eax, %i' % size)
+                cb.writel('push eax')
+                
 
         ifblock_c_global = ifblock_c
         wblock_c_global = wblock_c
