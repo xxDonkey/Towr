@@ -1,10 +1,8 @@
-let sizeof_byte 16 end
+let sizeof_byte 2 end
 
 let nCells 10 end
 let gSize nCells nCells * end
-let reqMem 0 end
-
-&reqMem sizeof_byte gSize / drop ++ =
+let reqMem sizeof_byte gSize * end
 
 letmem grid reqMem end
 
@@ -18,13 +16,12 @@ let lNeighbor 0 end
 let rNeighbor 0 end
 
 while n gSize < do
-    
-
     nCells n / 
     &y ~ =
     &x ~ =
 
-    
-
+    n ^
+        
     &n n ++ =
 end
+
