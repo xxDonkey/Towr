@@ -11,61 +11,61 @@ A stack based language inspired by [Porth](https://github.com/tsoding/porth), an
 ## Intrinsics
 
 ### `+` - PLUS
-Expects: `a, b`
+Expects: `a, b`\
 Returns: `a + b`
 
 ### `-` - MINUS
-Expects: `a, b`
+Expects: `a, b`\
 Returns: `a - b`
 
 ### `*` - MULTIPLY
-Expects: `a, b`
+Expects: `a, b`\
 Returns: `a * b`
 
 ### `/` - DIVMOD
-Expects: `a, b`
+Expects: `a, b`\
 Returns: `b % a, floor(b / a)`
 
 ### `^` - PRINT
-Expects: `a`
+Expects: `a`\
 Returns: `none`
 
 ### `~` - SWAP
-Expects: `a, b`
+Expects: `a, b`\
 Returns: `b, a`
 
 ### `~` - EQUALS
-Expects: `a, b`
+Expects: `a, b`\
 Returns: `a == b`
 
 ### `~` - GREATER
-Expects: `a, b`
+Expects: `a, b`\
 Returns: `a > b`
 
 ### `~` - LESS
-Expects: `a, b`
+Expects: `a, b`\
 Returns: `a < b`
 
 ### `dup` - DUP
-Expects: `a`
+Expects: `a`\
 Returns: `a, a`
 
 ### `drop` - DROP
-Expects: `a`
+Expects: `a`\
 Returns: `none`
 
 ### `=` - STORE
-Expects: `ref, val`
+Expects: `ref, val`\
 Returns: `none`
 
 ### `@a` - READ
-Expects: `ref`
+Expects: `ref`\
 Returns: `val`
 
 ### `++` - INC
-Expects: `a`
+Expects: `a`\
 Returns: `a + 1`
 
 ### `--` - DEC
-Expects: `a`
+Expects: `a`\
 Returns: `a - 1`
