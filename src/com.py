@@ -61,19 +61,19 @@ def com_program(program: Program, outfile: str) -> None:
     assert initialized, '`initialize` must be called to use com.py'
     __com_program_win10(program, outfile)
 
-def __com_program_win10(program: Program, outfile: str, compile: bool=True) -> Union[str, None]:
+def __com_program_win10(program: Program, outfile: str, compile: bool=True, debug_output:bool=False) -> Union[str, None]:
     assert len(OperationType) == 9, 'Unhandled members of `OperationType`'
     assert len(Keyword) == 6 + _UNUSED_KEYWORDS, 'Unhandled members of `Keyword`'
     assert len(Intrinsic) == 15, 'Unhandled members of `Intrinsic`'
-
-    with open('out.txt', 'w') as f:
-        for op in program.operations:
-            f.write('%s\n' % op.__str__())
+    
+    if debug_output:
+        with open('out.txt', 'w') as f:
+            for op in program.operations:
+                f.write('%s\n' % op.__str__())
 
     global ifc_global
     ifc_global = 0
     vars: list[Variable] = []
-    #compile = False
 
     def generate_main_code_body(operations: list[Operation], indent:int=1) -> Tuple[str, list[bytes]]:
         global ifc_global
