@@ -2,6 +2,8 @@ import os
 from globals import *
 # from syscalls import SYSCALLS
 
+# pyright: reportUnnecessaryComparison=false 
+
 initialized: bool = False
 stack_limit: int
 
@@ -69,22 +71,28 @@ def __com_program_win10(program: Program, outfile: str, compile: bool=True, debu
     debug_output = True
 
     if debug_output:
-        with open('out.txt', 'w') as f:
+        with open('test/out.txt', 'w') as f:
             for op in program.operations:
                 f.write('%s\n' % op.__str__())
 
-    global block_c_global
-    block_c_global = 0
+    global ifblock_c_global
+    ifblock_c_global = 0
+
+    global wblock_c_global
+    wblock_c_global = 0
+    
     vars: list[Variable] = []
     #compile = False
 
     def generate_main_code_body(operations: list[Operation], indent:int=1) -> Tuple[str, list[bytes]]:
-        global block_c_global
+        global ifblock_c_global
+        global wblock_c_global
         cb = CodeBody()
         cb.indent = indent
         strs: list[bytes] = []
         while_cond: list[Operation] = []
-        block_c = block_c_global
+        ifblock_c = ifblock_c_global
+        wblock_c = wblock_c_global
         elseif_c: int = 0
         cblock: BlockType = BlockType.NONE
         for operation in operations:
@@ -167,17 +175,20 @@ def __com_program_win10(program: Program, outfile: str, compile: bool=True, debu
                 cb.writel('mov _%s, eax' % name)
                 vars.append(Variable(name=name, value=value, malloc=True))
             elif operation.type == Keyword.IF:
-                cb.writecl(';; --- Check Condition for _if_%i --- ;;' % block_c)
-                cb.write_buffer('\n    ;; --- Jump to _if_%i if True --- ;;'% block_c)
+                cb.writecl(';; --- Check Condition for _if_%i --- ;;' % ifblock_c)
+                cb.write_buffer('\n    ;; --- Jump to _if_%i if True --- ;;'% ifblock_c)
                 cb.write_buffer('\n    pop eax\n')
                 cb.write_buffer('    mov ebx, 1\n')
                 cb.write_buffer('    cmp eax, ebx\n')
-                cb.write_buffer('    je _if_%i\n' % block_c)
+                cb.write_buffer('    je _if_%i\n' % ifblock_c)
                 cblock = BlockType.IF
             elif operation.type == Keyword.ELSE:
-                cb.writecl(';; --- Otherwise Jump to _else_%i --- ;;' % block_c)
-                cb.writel('jmp _else_%i' % block_c)
-                cb.write_buffer('\n_else_%i:\n' % block_c, 1)
+                cb.code_body = cb.code_body.replace(
+                    ';; --- Otherwise Jump to _enidf_%i --- ;;' % ifblock_c,
+                    ';; --- Otherwise Jump to _else_%i --- ;;' % ifblock_c, 1
+                )
+                cb.buffer[1] = cb.buffer[1].replace('jmp _endif_%i' % ifblock_c, 'jmp _else_%i' % ifblock_c, 1)
+                cb.write_buffer('\n_else_%i:\n' % ifblock_c, 1)
                 block_body = ''
                 if len(operation.args) > 0:
                     assert isinstance(operation.args[0], Operation), 'Error in tparser.py in `program_from_tokens`'
@@ -185,52 +196,64 @@ def __com_program_win10(program: Program, outfile: str, compile: bool=True, debu
                 cb.write_buffer(block_body, 1)
                 cblock = BlockType.ELSE
             elif operation.type == Keyword.ELSEIF:
-                cb.writecl(';; --- Check Condition for _elseif_%i_%i --- ;;' % (block_c, elseif_c))
-                cb.write_buffer('\n    ;; --- Jump to _elseif_%i_%i if True --- ;;' % (block_c, elseif_c))
+                cb.writecl(';; --- Check Condition for _elseif_%i_%i --- ;;' % (ifblock_c, elseif_c))
+                cb.write_buffer('\n    ;; --- Jump to _elseif_%i_%i if True --- ;;' % (ifblock_c, elseif_c))
                 cb.write_buffer('\n    pop eax\n')
                 cb.write_buffer('    mov ebx, 1\n')
                 cb.write_buffer('    cmp eax, ebx\n')
-                cb.write_buffer('    je _elseif_%i_%i\n' % (block_c, elseif_c))
+                cb.write_buffer('    je _elseif_%i_%i\n' % (ifblock_c, elseif_c))
                 elseif_c += 1
                 cblock = BlockType.ELSEIF
             elif operation.type == Keyword.WHILE:
-                cb.writecl(';; --- Check Condition for _while_%i --- ;;' % block_c)
-                cb.write_buffer('\n    ;; --- Jump to _while_%i if True --- ;;'% block_c)
+                cb.writecl(';; --- Check Condition for _while_%i --- ;;' % wblock_c)
+                cb.write_buffer('\n    ;; --- Jump to _while_%i if True --- ;;'% wblock_c)
                 cb.write_buffer('\n    pop eax\n')
                 cb.write_buffer('    mov ebx, 1\n')
                 cb.write_buffer('    cmp eax, ebx\n')
-                cb.write_buffer('    je _while_%i\n' % block_c)
+                cb.write_buffer('    je _while_%i\n' % wblock_c)
                 cblock = BlockType.WHILE
             elif operation.type == Keyword.DO:
                 cb.dump_buffer()
                 block_body = ''
+                end_suffix = 'if'
                 if len(operation.args) > 0:
                     assert isinstance(operation.args[0], Operation), 'Error in tparser.py in `program_from_tokens`'
                     block_body, _ = generate_main_code_body(operation.args)
                 if cblock == BlockType.IF:
-                    cb.write_buffer('\n_if_%i:\n' % block_c, 1)
+                    cb.writecl(';; --- Otherwise Jump to _enidf_%i --- ;;' % ifblock_c)
+                    cb.write_buffer('jmp _endif_%i\n' % ifblock_c, 1)
+                    cb.write_buffer('\n_if_%i:\n' % ifblock_c, 1)
                     cb.write_buffer(block_body, 1)
                 elif cblock == BlockType.ELSEIF:
-                    cb.write_buffer('\n_elseif_%i_%i:\n' % (block_c, elseif_c - 1), 1)
+                    cb.write_buffer('\n_elseif_%i_%i:\n' % (ifblock_c, elseif_c - 1), 1)
                     cb.write_buffer(block_body, 1)
                 elif cblock == BlockType.WHILE:
-                    cb.write_buffer('\n_while_%i:\n' % block_c, 1)
+                    cb.write_buffer('\n_while_%i:\n' % ifblock_c, 1)
                     cb.write_buffer(block_body, 1)
                     condition_body, _ = generate_main_code_body(while_cond[:-1])
                     cb.write_buffer(condition_body, 1)
-                    cb.write_buffer('\n    ;; --- Jump to _while_%i if True --- ;;'% block_c, 1)
+                    cb.write_buffer('\n    ;; --- Jump to _while_%i if True --- ;;'% ifblock_c, 1)
                     cb.write_buffer('\n    pop eax\n', 1)
                     cb.write_buffer('    mov ebx, 1\n', 1)
                     cb.write_buffer('    cmp eax, ebx\n', 1)
-                    cb.write_buffer('    je _while_%i\n' % block_c, 1)
+                    cb.write_buffer('    je _while_%i\n' % ifblock_c, 1)
+                    end_suffix = 'w'
                 else:
                     assert False, 'impossible'
                 cb.write_buffer('\n    ;; --- Jump Out of the IF-ELSEIF-ELSE Statement --- ;;', 1)
-                cb.write_buffer('\n    jmp _end_%i\n' % block_c, 1)
+                cb.write_buffer('\n    jmp _end%s_%i\n' % (end_suffix, ifblock_c), 1)
             elif operation.type == Keyword.END:
                 cb.dump_buffer(1)
-                cb.writel('\n_end_%i:' % block_c)
-                block_c += 1
+                if cblock == BlockType.WHILE:
+                    cb.writel('\n_endw_%i:' % wblock_c)
+                    wblock_c += 1
+                elif cblock != BlockType.NONE:
+                    cb.writel('\n_endif_%i:' % wblock_c)
+                    ifblock_c += 1
+                else:
+                    assert False, 'impossible'
+               
+                elseif_c = 0
                 # assert False, 'TODO: Finish implementation'
 
             elif operation.type == Intrinsic.PLUS:
@@ -325,7 +348,8 @@ def __com_program_win10(program: Program, outfile: str, compile: bool=True, debu
                 cb.writel('dec eax')
                 cb.writel('push eax')
 
-        block_c_global = block_c
+        ifblock_c_global = ifblock_c
+        wblock_c_global = wblock_c
         return (cb.code_body, strs)
     
     cb: CodeBody = CodeBody()
