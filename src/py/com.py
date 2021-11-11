@@ -418,7 +418,6 @@ def __com_program_win10(program: Program, outfile: str, compile: bool=True, debu
     main_body, _strs = generate_main_code_body(program.operations)
     cb.writel(main_body)
     strs += _strs
-    print(strs)
     data_str: str = ''
     data_str += '\n;; --- Data Declarations --- ;;'
     data_str += '\n.data'
