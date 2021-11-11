@@ -1,0 +1,7 @@
+let x 9 end
+
+if x 8 == do
+    1 ^
+else
+    2 ^
+end
