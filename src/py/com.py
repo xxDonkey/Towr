@@ -65,7 +65,7 @@ def com_program(program: Program, outfile: str) -> None:
 
 def __com_program_win10(program: Program, outfile: str, compile: bool=True, debug_output:bool=False) -> Union[str, None]:
     assert len(OperationType) == 9, 'Unhandled members of `OperationType`'
-    assert len(Keyword) == 6 + _UNUSED_KEYWORDS, 'Unhandled members of `Keyword`'
+    assert len(Keyword) == 8 + _UNUSED_KEYWORDS, 'Unhandled members of `Keyword`'
     assert len(Intrinsic) == 17, 'Unhandled members of `Intrinsic`'
     
     debug_output = True
@@ -80,6 +80,9 @@ def __com_program_win10(program: Program, outfile: str, compile: bool=True, debu
 
     global wblock_c_global
     wblock_c_global = 0
+
+    global iota_global
+    iota_global = 0
     
     vars: list[Variable] = []
     #compile = False
@@ -87,12 +90,14 @@ def __com_program_win10(program: Program, outfile: str, compile: bool=True, debu
     def generate_main_code_body(operations: list[Operation], indent:int=1) -> Tuple[str, list[bytes]]:
         global ifblock_c_global
         global wblock_c_global
+        global iota_global
         cb = CodeBody()
         cb.indent = indent
         strs: list[bytes] = []
         while_cond: list[Operation] = []
         ifblock_c = ifblock_c_global
         wblock_c = wblock_c_global
+        iota = iota_global
         elseif_c: int = 0
         cblock: BlockType = BlockType.NONE
         for operation in operations:
@@ -261,6 +266,17 @@ def __com_program_win10(program: Program, outfile: str, compile: bool=True, debu
                
                 elseif_c = 0
                 # assert False, 'TODO: Finish implementation'
+            elif operation.type == Keyword.COUNTER:
+                cb.writecl(';; --- Push INT from Internal Counter [%i] ---;;' % iota)
+                cb.writel('mov eax, %i' % iota)
+                cb.writel('push eax')
+                iota += 1
+            elif operation.type == Keyword.RESET:
+                cb.writecl(';; --- Push INT from Internal Counter [%i] ---;;' % iota)
+                cb.writel('mov eax, %i' % iota)
+                cb.writel('push eax')
+                iota = 0
+                iota_global = 0
 
             elif operation.type == Intrinsic.PLUS:
                 cb.writecl(';; --- PLUS --- ;;')
@@ -363,6 +379,7 @@ def __com_program_win10(program: Program, outfile: str, compile: bool=True, debu
 
         ifblock_c_global = ifblock_c
         wblock_c_global = wblock_c
+        iota_global = iota
         return (cb.code_body, strs)
     
     cb: CodeBody = CodeBody()

@@ -24,7 +24,7 @@ def program_from_tokens(tokens: list[Token], start_vars: list[Variable]=[]) -> P
         adv: int = 1
     
         assert len(OperationType) == 3 + _OPERATION_TYPE_NO_STATEMENTS, 'Unhandled members of `OperationType`'
-        assert len(Keyword) == 11, 'Unhandled members of `Keyword`'
+        assert len(Keyword) == 13, 'Unhandled members of `Keyword`'
         assert len(Intrinsic) == 17, 'Unhandled members of `Intrinsic`'
 
         if (ctoken.type == OperationType.PUSH_INT or
@@ -213,6 +213,16 @@ def program_from_tokens(tokens: list[Token], start_vars: list[Variable]=[]) -> P
             ]
             funcs[-1].vars = fprogram.vars
             adv = len(btokens) + 2
+        elif ctoken.type == Keyword.COUNTER:
+            operations.append(Operation(
+                type=Keyword.COUNTER,
+                operand=0
+            ))
+        elif ctoken.type == Keyword.RESET:
+            operations.append(Operation(
+                type=Keyword.RESET,
+                operand=0
+            ))
         # variable
         elif ctoken.value in (var_strs := [var.name for var in vars]):
             var: Variable = vars[var_strs.index(ctoken.value)]

@@ -51,6 +51,8 @@ class Keyword(Enum):
     END         = auto()
     IMPORT      = auto()
     PARAMS      = auto()
+    COUNTER     = auto()
+    RESET       = auto()
 
 class Intrinsic(Enum):
     PLUS        = auto()
@@ -142,6 +144,8 @@ KEYWORDS: dict[str, Keyword] = {
     'end'   : Keyword.END,
     'import': Keyword.IMPORT,
     'params': Keyword.PARAMS,
+    'iota'  : Keyword.COUNTER,
+    'rst'   : Keyword.RESET,
 }
 KEYWORDS_INV: dict[Keyword, str] = {v: k for k, v in KEYWORDS.items()}
 assert len(KEYWORDS) == len(Keyword), 'Unassigned keywords'
