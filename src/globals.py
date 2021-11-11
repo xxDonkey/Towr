@@ -1,6 +1,6 @@
 from enum import Enum, auto
-from typing import Tuple, Union
-from dataclasses import dataclass
+from typing import Any, Tuple, Union
+from dataclasses import dataclass, field
 
 # (filename, line, col)
 Location = Tuple[str, int, int]
@@ -8,11 +8,14 @@ Location = Tuple[str, int, int]
 # size, ptr
 TStr = Tuple[int, int]
 
+COMMENT = '#'
+
 def __compiler_print(location: Location, type: str, message: str):
     f, l, c = location
     print(f'{f}:{l}:{c}: {type}: {message}')
 
-def compiler_error(location: Location, message: str) -> None:
+def compiler_error(location: Location, message: str, py_file: str) -> None:
+    print(f'Error in {py_file} ...')
     __compiler_print(location, 'ERROR', message)
     exit(1)
 
@@ -38,6 +41,7 @@ class OperationType(Enum):
 
 class Keyword(Enum):
     LET         = auto()
+    LETMEM      = auto()
     FUNC        = auto()
     IF          = auto()
     ELSE        = auto()
@@ -52,6 +56,7 @@ class Intrinsic(Enum):
     PLUS        = auto()
     MINUS       = auto()
     MULTIPLY    = auto()
+    DIVMOD      = auto()
     PRINT       = auto()
     SWAP        = auto()
     EQUALS      = auto()
@@ -60,7 +65,6 @@ class Intrinsic(Enum):
     DUP         = auto()
     DROP        = auto()
     STORE       = auto()
-    READ       = auto()
     INC         = auto()
     DEC         = auto()
 
@@ -85,13 +89,14 @@ class Token:
 @dataclass
 class Variable:
     name: str
-    datatype: DataType
     value: int
+    malloc: bool = False
     
 @dataclass
 class Operation:
     type: Union[OperationType, Keyword, Intrinsic]
     operand: Union[int, str]
+    args: list[Any] = field(default_factory=list)
 
 @dataclass
 class Func:
@@ -124,6 +129,7 @@ class TowrFile:
 
 KEYWORDS: dict[str, Keyword] = {
     'let'   : Keyword.LET,
+    'letmem': Keyword.LETMEM,
     'if'    : Keyword.IF,
     'else'  : Keyword.ELSE,
     'elseif': Keyword.ELSEIF,
@@ -141,15 +147,15 @@ INTRINSICS: dict[str, Intrinsic] = {
     '+'     : Intrinsic.PLUS,
     '-'     : Intrinsic.MINUS,
     '*'     : Intrinsic.MULTIPLY,
+    '/'     : Intrinsic.DIVMOD,
     '^'     : Intrinsic.PRINT,
     '~'     : Intrinsic.SWAP,
-    '='     : Intrinsic.EQUALS,
+    '=='    : Intrinsic.EQUALS,
     '>'     : Intrinsic.GREATER,
     '<'     : Intrinsic.LESS,
     'dup'   : Intrinsic.DUP,
     'drop'  : Intrinsic.DROP,
-    '!s'    : Intrinsic.STORE,
-    '@s'    : Intrinsic.READ,
+    '='     : Intrinsic.STORE,
     '++'    : Intrinsic.INC,
     '--'    : Intrinsic.DEC,
 }
@@ -158,8 +164,8 @@ assert len(INTRINSICS) == len(Intrinsic), 'Unassigned intrinsics'
 def CHECK_ASSIGNMENT(token: Token) -> None:
     """ Checks if a given token can be used as a variable or function name. """
     if token.value in KEYWORDS:
-        compiler_error(token.location, 'Cannot use a keyword as a variable name')
+        compiler_error(token.location, 'Cannot use a keyword as a variable name', __file__)
     if token.value in INTRINSICS:
-        compiler_error(token.location, 'Cannot use an intrinsic as a variable name')
+        compiler_error(token.location, 'Cannot use an intrinsic as a variable name', __file__)
 
     # TODO: check against other vars/funcs

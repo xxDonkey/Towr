@@ -90,7 +90,7 @@ def sim_tokens(tokens: list[Token], vars: list[Variable], check_stack_size: bool
                 stack_size -= 1
 
         else:
-            compiler_error(token.location, f'Unrecognized token {token.value!r}')
+            compiler_error(token.location, f'Unrecognized token {token.value!r}', __file__)
 
        
 
@@ -102,5 +102,5 @@ def sim_tokens(tokens: list[Token], vars: list[Variable], check_stack_size: bool
 
     out = stack.pop()
     if len(stack) > 0:
-        compiler_error(tokens[0].location, 'Unhandled data on stack in `LET` statement.')
+        compiler_error(tokens[0].location, 'Unhandled data on stack in `LET` statement.', __file__)
     return out

@@ -1,7 +1,6 @@
-let nCells 20 end
-let nGrid nCells nCells * end
+let nCells 10 end
 
-let i 0 end
+let n 0 end
 
 let x 0 end
 let y 0 end
@@ -10,25 +9,8 @@ let cell 0 end
 let lNeighbor 0 end
 let rNeighbor 0 end
 
-while 1 1 = do
-    &x i !s
-    // divmod adds d, remainder to stack
-    nCells i divmod drop
-    &y ~ !s
+nCells n / 
+&y ~ =
+&x ~ =
 
-    &cell // get value from array x
-
-    if x 0 > do
-        &lNeighbor // get value from array at x-1
-    end
-    if x nCells < do
-        &rNeighbor // get value from array at x+1
-    end
-
-    let newState 0 end
-    &newState cell rNeighbor or lNeighbor xor !s
-    
-    // write newState to memory
-
-    i ++
-end
+n ++

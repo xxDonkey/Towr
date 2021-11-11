@@ -15,7 +15,6 @@ def program_from_tokens(tokens: list[Token]) -> Program:
     operations: list[Operation] = []
     vars: list[Variable]        = []
     funcs: list[Func]           = []
-    
     stack_size: int = 0
     tp: int = 0
     while tp < len(tokens):
@@ -25,7 +24,7 @@ def program_from_tokens(tokens: list[Token]) -> Program:
         adv: int = 1
 
         assert len(OperationType) == 3 + _OPERATION_TYPE_NO_STATEMENTS, 'Unhandled members of `OperationType`'
-        assert len(Keyword) == 10, 'Unhandled members of `Keyword`'
+        assert len(Keyword) == 11, 'Unhandled members of `Keyword`'
         assert len(Intrinsic) == 14, 'Unhandled members of `Intrinsic`'
 
         if (ctoken.type == OperationType.PUSH_INT or
@@ -41,45 +40,52 @@ def program_from_tokens(tokens: list[Token]) -> Program:
                 operand=ctoken.str_operand
             ))
             stack_size += 2
-        elif (ctoken.type == Intrinsic.PLUS     or
-              ctoken.type == Intrinsic.MINUS    or
-              ctoken.type == Intrinsic.MULTIPLY or
-              ctoken.type == Intrinsic.PRINT    or
-              ctoken.type == Intrinsic.EQUALS   or 
-              ctoken.type == Intrinsic.GREATER  or
-              ctoken.type == Intrinsic.LESS     or
-              ctoken.type == Intrinsic.DUP      or
-              ctoken.type == Intrinsic.DROP     or
-              ctoken.type == Intrinsic.STORE    or
-              ctoken.type == Intrinsic.READ     or
-              ctoken.type == Intrinsic.INC      or
-              ctoken.type == Intrinsic.DEC): 
-            operations.append(Operation(
-                type=ctoken.type,
-                operand=0
-            ))
-            stack_size -= 1
         elif ctoken.type == Intrinsic.SWAP: # 0
             operations.append(Operation(
                 type=ctoken.type,
                 operand=0
             ))
+        elif isinstance(ctoken.type, Intrinsic): 
+            operations.append(Operation(
+                type=ctoken.type,
+                operand=0
+            ))
+            stack_size -= 1
 
         elif ctoken.type == Keyword.LET:
             end_str: str = KEYWORDS_INV[Keyword.END]
             if end_str not in rtoken_strs:
-                compiler_error(ctoken.location, '`LET` statement never closed')
+                compiler_error(ctoken.location, '`LET` statement never closed', __file__)
             eidx = rtoken_strs.index(end_str)
             rtokens = rtokens[:eidx]
             ntoken = rtokens.pop(0)
             CHECK_ASSIGNMENT(ntoken)
             value = sim_tokens(rtokens, vars)
-            vars.append(Variable(**value.__dict__, name=ntoken.value))
+            vars.append(Variable(name=ntoken.value, value=value.value))
+            operations.append(Operation(
+                type=Keyword.LET,
+                operand='%i/%s' % (value.value, ntoken.value)
+            ))            
+            adv = len(rtokens) + 3 # rtokens does not include var name or end keyword, we want to skip end
+        elif ctoken.type == Keyword.LETMEM:
+            end_str: str = KEYWORDS_INV[Keyword.END]
+            if end_str not in rtoken_strs:
+                compiler_error(ctoken.location, '`LET` statement never closed', __file__)
+            eidx = rtoken_strs.index(end_str)
+            rtokens = rtokens[:eidx]
+            ntoken = rtokens.pop(0)
+            CHECK_ASSIGNMENT(ntoken)
+            value = sim_tokens(rtokens, vars) # size of array
+            vars.append(Variable(name=ntoken.value, value=value.value, malloc=True))
+            operations.append(Operation(
+                type=Keyword.LETMEM,
+                operand='%i/%s' % (value.value, ntoken.value)
+            )) 
             adv = len(rtokens) + 3 # rtokens does not include var name or end keyword, we want to skip end
         elif ctoken.type == Keyword.FUNC:
             params_str: str = KEYWORDS_INV[Keyword.PARAMS]
             if params_str not in rtoken_strs:
-                compiler_error(ctoken.location, '`FUNC` statement expects params')
+                compiler_error(ctoken.location, '`FUNC` statement expects params', __file__)
             pidx = rtoken_strs.index(params_str)
             rtokens = rtokens[:pidx]
             ntoken = rtokens.pop(0)
@@ -96,7 +102,7 @@ def program_from_tokens(tokens: list[Token]) -> Program:
         elif ctoken.type == Keyword.IF:
             do_str: str = KEYWORDS_INV[Keyword.DO]
             if do_str not in rtoken_strs:
-                compiler_error(ctoken.location, '`IF` statement expects `DO` statement')
+                compiler_error(ctoken.location, '`IF` statement expects `DO` statement', __file__)
             operations.append(Operation(
                 type=Keyword.IF,
                 operand=0
@@ -109,7 +115,7 @@ def program_from_tokens(tokens: list[Token]) -> Program:
         elif ctoken.type == Keyword.ELSEIF:
             do_str: str = KEYWORDS_INV[Keyword.DO]
             if do_str not in rtoken_strs:
-                compiler_error(ctoken.location, '`ELSEIF` statement expects `DO` statement')
+                compiler_error(ctoken.location, '`ELSEIF` statement expects `DO` statement', __file__)
             operations.append(Operation(
                 type=Keyword.ELSEIF,
                 operand=0
@@ -117,21 +123,20 @@ def program_from_tokens(tokens: list[Token]) -> Program:
         elif ctoken.type == Keyword.WHILE:
             do_str: str = KEYWORDS_INV[Keyword.DO]
             if do_str not in rtoken_strs:
-                compiler_error(ctoken.location, '`WHILE` statement expects `DO` statement')
+                compiler_error(ctoken.location, '`WHILE` statement expects `DO` statement', __file__)
+            rtokens = rtokens[:rtoken_strs.index(do_str)]
+            program = program_from_tokens(rtokens)
             operations.append(Operation(
                 type=Keyword.WHILE,
-                operand=0
+                operand=0,
+                args=program.operations
             ))
         elif ctoken.type == Keyword.DO:
             end_str: str = KEYWORDS_INV[Keyword.END]
             else_str: str = KEYWORDS_INV[Keyword.ELSE]
             elseif_str: str = KEYWORDS_INV[Keyword.ELSEIF]
             if end_str not in rtoken_strs and else_str not in rtoken_strs and elseif_str not in rtoken_strs:
-                compiler_error(ctoken.location, '`IF` statement never closed')
-            operations.append(Operation(
-                type=OperationType.WRITE_STACK_SIZE,
-                operand=0
-            ))
+                compiler_error(ctoken.location, '`IF` statement never closed', __file__)
             operations.append(Operation(
                 type=Keyword.DO,
                 operand=0
@@ -139,10 +144,10 @@ def program_from_tokens(tokens: list[Token]) -> Program:
         elif ctoken.type == Keyword.IMPORT:
             ntoken = rtokens.pop(0)
             if not IS_STR(ntoken.value):
-                compiler_error(ntoken.location, '`IMPORT` statement expects a proceeding string literal')
+                compiler_error(ntoken.location, '`IMPORT` statement expects a proceeding string literal', __file__)
             import_val = ntoken.value[1:-1]
             if not import_val.endswith('.towr'):
-                compiler_error(ntoken.location, '`IMPORT` statement expects a Towr file')
+                compiler_error(ntoken.location, '`IMPORT` statement expects a Towr file', __file__)
             import_path = os.path.join(os.getcwd(), import_val)
             code_body: str
             with open(import_path, 'r') as file:
@@ -164,7 +169,7 @@ def program_from_tokens(tokens: list[Token]) -> Program:
         elif ctoken.type == Keyword.PARAMS:
             end_str: str = KEYWORDS_INV[Keyword.END]
             if end_str not in rtoken_strs:
-                compiler_error(ctoken.location, '`FUNC` statement never closed')
+                compiler_error(ctoken.location, '`FUNC` statement never closed', __file__)
             depth: int = 0
             i: int = 0
             for i, token in enumerate(rtokens):
@@ -213,7 +218,7 @@ def program_from_tokens(tokens: list[Token]) -> Program:
             ))
 
         else:
-            compiler_error(ctoken.location, f'Unrecognized token {ctoken.value!r}')
+            compiler_error(ctoken.location, f'Unrecognized token {ctoken.value!r}', __file__)
 
         tp += adv 
 

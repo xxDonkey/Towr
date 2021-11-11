@@ -25,7 +25,7 @@ def token_from_src(token: str,
         operation_type = OperationType.PUSH_BOOL
         bool_digit = int(token[:len(token) - 1])
         if not (-1 < bool_digit < 2):
-            compiler_error((filename, line, col), 'Datatype `BOOL` cannot have a value other than 0 or 1')
+            compiler_error((filename, line, col), 'Datatype `BOOL` cannot have a value other than 0 or 1', __file__)
         operand = bool_digit
 
     elif IS_STR(token):
