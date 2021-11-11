@@ -59,7 +59,7 @@ Returns: `none`
 Expects: `ref, val`\
 Returns: `none`
 
-### `@a` - READ
+### `@` - READ
 Expects: `ref`\
 Returns: `val`
 
