@@ -142,18 +142,19 @@ def program_from_tokens(tokens: list[Token], start_vars: list[Variable]=[]) -> P
             elseif_str: str = KEYWORDS_INV[Keyword.ELSEIF]
             if not end_str in rtoken_strs and not else_str in rtoken_strs and not elseif_str in rtoken_strs:
                 compiler_error(ctoken.location, '`IF` statement never closed', __file__)
-            eidx = 0
-            try:
-                eidx = rtoken_strs.index(elseif_str)
-            except ValueError:
-                try:
-                    eidx = rtoken_strs.index(else_str)
-                except ValueError:
-                    try:
-                        eidx = rtoken_strs.index(end_str)
-                    except ValueError:
-                        pass
-            rtokens = rtokens[:eidx]
+            depth: int = 0
+            i: int = 0
+            for i, token in enumerate(rtokens):
+                print('------')
+                print(depth, i, token)
+                if token.type == Keyword.LET or token.type == Keyword.IF or token.type == Keyword.WHILE:
+                    depth += 1
+                elif token.type == Keyword.END or token.type == Keyword.ELSEIF or token.type == Keyword.ELSE:
+                    depth -= 1
+                if depth < 0:
+                    break
+                print(depth, i, token)
+            rtokens = rtokens[:i]
             program = program_from_tokens(rtokens)
             operations.append(Operation(
                 type=Keyword.DO,
