@@ -4,9 +4,10 @@ A stack based language inspired by [Porth](https://github.com/tsoding/porth), an
 
 ## Goals
 
-- [ ] Native
-- [ ] Compiled
-- [ ] Stack-based 
+- [x] Native
+- [x] Compiled
+- [x] Stack-based 
+- [ ] Self-hosted (compiler written in itself)
 
 ## Intrinsics
 
