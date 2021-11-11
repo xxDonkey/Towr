@@ -1,7 +1,0 @@
-Operation(type=<Keyword.LET: 1>, operand='1/x', args=[])
-Operation(type=<Keyword.WHILE: 7>, operand=0, args=[])
-Operation(type=<OperationType.VAR_REF: 4>, operand='x', args=[])
-Operation(type=<OperationType.PUSH_INT: 1>, operand=4, args=[])
-Operation(type=<Intrinsic.LESS: 9>, operand=0, args=[])
-Operation(type=<Keyword.DO: 8>, operand=0, args=[Operation(type=<OperationType.VAR_REF: 4>, operand='x', args=[]), Operation(type=<Intrinsic.PRINT: 5>, operand=0, args=[]), Operation(type=<OperationType.PUSH_VAR_REF: 5>, operand='x', args=[]), Operation(type=<OperationType.VAR_REF: 4>, operand='x', args=[]), Operation(type=<Intrinsic.INC: 14>, operand=0, args=[]), Operation(type=<Intrinsic.STORE: 12>, operand=0, args=[])])
-Operation(type=<Keyword.END: 9>, operand=0, args=[])
