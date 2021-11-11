@@ -80,7 +80,7 @@ def sim_tokens(tokens: list[Token], vars: list[Variable], check_stack_size: bool
                 continue
             var = vars[var_strs.index(token.value)]
             stack.append(StackValue(
-                datatype=var.datatype,
+                datatype=DataType.INT,
                 value=var.value
             ))
         
