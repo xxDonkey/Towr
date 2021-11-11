@@ -118,3 +118,4 @@ test/
 *.asm
 *.obj
 *.exe
+out.txt
