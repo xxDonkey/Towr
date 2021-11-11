@@ -15,7 +15,7 @@ def program_from_tokens(tokens: list[Token], start_vars: list[Variable]=[]) -> P
     operations: list[Operation] = []
     vars: list[Variable]        = start_vars
     funcs: list[Func]           = []
-    stack_size: int = 0
+    iota: int = 0
     tp: int = 0
     while tp < len(tokens):
         ctoken = tokens[tp]
@@ -33,13 +33,11 @@ def program_from_tokens(tokens: list[Token], start_vars: list[Variable]=[]) -> P
                 type=OperationType(ctoken.type),
                 operand=ctoken.operand
             ))
-            stack_size += 1
         elif ctoken.type == OperationType.PUSH_STR:
             operations.append(Operation(
                 type=OperationType.PUSH_STR,
                 operand=ctoken.str_operand
             ))
-            stack_size += 2
         elif ctoken.type == Intrinsic.SWAP: # 0
             operations.append(Operation(
                 type=ctoken.type,
@@ -50,7 +48,6 @@ def program_from_tokens(tokens: list[Token], start_vars: list[Variable]=[]) -> P
                 type=ctoken.type,
                 operand=0
             ))
-            stack_size -= 1
 
         elif ctoken.type == Keyword.LET:
             end_str: str = KEYWORDS_INV[Keyword.END]
@@ -60,7 +57,8 @@ def program_from_tokens(tokens: list[Token], start_vars: list[Variable]=[]) -> P
             rtokens = rtokens[:eidx]
             ntoken = rtokens.pop(0)
             CHECK_ASSIGNMENT(ntoken)
-            value = sim_tokens(rtokens, vars)
+            value, new_iota = sim_tokens(rtokens, vars, iota)
+            iota = new_iota
             vars.append(Variable(name=ntoken.value, value=value.value))
             operations.append(Operation(
                 type=Keyword.LET,
@@ -75,7 +73,8 @@ def program_from_tokens(tokens: list[Token], start_vars: list[Variable]=[]) -> P
             rtokens = rtokens[:eidx]
             ntoken = rtokens.pop(0)
             CHECK_ASSIGNMENT(ntoken)
-            value = sim_tokens(rtokens, vars) # size of array
+            value, new_iota = sim_tokens(rtokens, vars, iota)
+            iota = new_iota
             vars.append(Variable(name=ntoken.value, value=value.value, malloc=True))
             operations.append(Operation(
                 type=Keyword.LETMEM,
@@ -218,11 +217,13 @@ def program_from_tokens(tokens: list[Token], start_vars: list[Variable]=[]) -> P
                 type=Keyword.COUNTER,
                 operand=0
             ))
+            iota += 1
         elif ctoken.type == Keyword.RESET:
             operations.append(Operation(
                 type=Keyword.RESET,
                 operand=0
             ))
+            iota = 0
         # variable
         elif ctoken.value in (var_strs := [var.name for var in vars]):
             var: Variable = vars[var_strs.index(ctoken.value)]
