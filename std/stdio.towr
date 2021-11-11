@@ -1,0 +1,4 @@
+# Prints a string to StdOut
+func print str_len str_addr params
+    str_len str_addr stdout
+end
