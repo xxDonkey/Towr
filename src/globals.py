@@ -65,6 +65,7 @@ class Intrinsic(Enum):
     DUP         = auto()
     DROP        = auto()
     STORE       = auto()
+    READ        = auto()
     INC         = auto()
     DEC         = auto()
 
@@ -156,6 +157,7 @@ INTRINSICS: dict[str, Intrinsic] = {
     'dup'   : Intrinsic.DUP,
     'drop'  : Intrinsic.DROP,
     '='     : Intrinsic.STORE,
+    '@'     : Intrinsic.READ,
     '++'    : Intrinsic.INC,
     '--'    : Intrinsic.DEC,
 }

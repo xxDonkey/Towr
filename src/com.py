@@ -20,19 +20,16 @@ _DATA_ESCAPE_SEQUENCE: str = '|!DATA!|'
 _VARIABLE_TYPE = 'dword'
 
 class BlockType(Enum):
+    NONE    = auto()
     IF      = auto()
+    ELSEIF  = auto()
+    ELSE    = auto()
     WHILE   = auto()
-
-_BLOCK_TYPE_CONVERSION: dict[BlockType, str] = {
-    BlockType.IF: 'if',
-    BlockType.WHILE: 'w',
-}
-assert len(_BLOCK_TYPE_CONVERSION) == len(BlockType), 'Unassigned block types'
 
 @dataclass
 class CodeBody:
     code_body: str = ''
-    buffer: str = ''
+    buffer: list[str] = field(default_factory=list)
     indent: int = 0
 
     def __get_indent(self) -> str:
@@ -51,12 +48,14 @@ class CodeBody:
     def writecl(self, code: str) -> None:
         self.code_body += '\n' + self.__get_indent() + code + '\n'
 
-    def write_buffer(self, code: str) -> None:
-        self.buffer += code 
+    def write_buffer(self, code: str, i: int=0) -> None:
+        if len(self.buffer) <= i:
+            self.buffer.append('')
+        self.buffer[i] += code 
 
-    def dump_buffer(self) -> None:
-        self.code_body += self.__get_indent() + self.buffer
-        self.buffer = ''
+    def dump_buffer(self, i: int=0) -> None:
+        self.code_body += self.__get_indent() + self.buffer[i]
+        self.buffer[i] = ''
 
 def com_program(program: Program, outfile: str) -> None:
     assert initialized, '`initialize` must be called to use com.py'
@@ -65,16 +64,26 @@ def com_program(program: Program, outfile: str) -> None:
 def __com_program_win10(program: Program, outfile: str, compile: bool=True) -> Union[str, None]:
     assert len(OperationType) == 9, 'Unhandled members of `OperationType`'
     assert len(Keyword) == 6 + _UNUSED_KEYWORDS, 'Unhandled members of `Keyword`'
-    assert len(Intrinsic) == 14, 'Unhandled members of `Intrinsic`'
+    assert len(Intrinsic) == 15, 'Unhandled members of `Intrinsic`'
 
+    with open('out.txt', 'w') as f:
+        for op in program.operations:
+            f.write('%s\n' % op.__str__())
+
+    global ifc_global
+    ifc_global = 0
     vars: list[Variable] = []
+    #compile = False
 
     def generate_main_code_body(operations: list[Operation], indent:int=1) -> Tuple[str, list[bytes]]:
+        global ifc_global
         cb = CodeBody()
         cb.indent = indent
-        blocks: list[BlockType] = []
         strs: list[bytes] = []
         while_cond: list[Operation] = []
+        if_c = ifc_global
+        elseif_c: int = 0
+        cblock: BlockType = BlockType.NONE
         for operation in operations:
             if operation.type == OperationType.PUSH_INT:
                 assert isinstance(operation.operand, int), 'Error in tparser.py in `program_from_tokens` or tokenizer.py in `tokenize_src`'
@@ -135,7 +144,6 @@ def __com_program_win10(program: Program, outfile: str, compile: bool=True) -> U
                 value, name = (operation.operand.split('/'))
                 assert IS_INT(value), 'Error in tparser.py in `program_from_tokens`'
                 value = int(value)
-                vidx = len(vars)
                 cb.writecl(';; --- Allocate 4 Bytes of Data for [%s] ---;;' % name)
                 cb.writel('invoke crt_malloc, 4')
                 cb.writel('mov _%s, eax' % name)
@@ -147,19 +155,37 @@ def __com_program_win10(program: Program, outfile: str, compile: bool=True) -> U
                 value, name = (operation.operand.split('/'))
                 assert IS_INT(value), 'Error in tparser.py in `program_from_tokens`'
                 value = int(value)
-                vidx = len(vars)
-                cb.writecl(';; --- Allocate %i Bytes of Data for [%s] ---;;' % (value, vidx))
+                cb.writecl(';; --- Allocate %i Bytes of Data for [%s] ---;;' % (value, name))
                 cb.writel('invoke crt_malloc, %i' % value)
-                cb.writel('mov _%s, eax' % vidx)
+                cb.writel('mov _%s, eax' % name)
                 vars.append(Variable(name=name, value=value, malloc=True))
             elif operation.type == Keyword.IF:
-                cb.write_buffer('.if ')
-                blocks.append(BlockType.IF)
+                cb.writecl(';; --- Check Condition for _if_%i --- ;;' % if_c)
+                cb.write_buffer('\n    ;; --- Jump to _if_%i if True --- ;;'% if_c)
+                cb.write_buffer('\n    pop eax\n')
+                cb.write_buffer('    mov ebx, 1\n')
+                cb.write_buffer('    cmp eax, ebx\n')
+                cb.write_buffer('    je _if_%i\n' % if_c)
+                cblock = BlockType.IF
             elif operation.type == Keyword.ELSE:
-                cb.writecl('.else ')
+                cb.writecl('jmp _else_%i' % if_c)
+                cb.writel(';; --- Jump to _else_%i if True --- ;;' % if_c)
+                cb.write_buffer('\n_else_%i:\n' % if_c, 1)
+                block_body = ''
+                if len(operation.args) > 0:
+                    assert isinstance(operation.args[0], Operation), 'Error in tparser.py in `program_from_tokens`'
+                    block_body, _ = generate_main_code_body(operation.args)
+                cb.write_buffer(block_body, 1)
+                cblock = BlockType.ELSE
             elif operation.type == Keyword.ELSEIF:
-                cb.writecl('.else')
-                cb.write_buffer('.endif\n\n.if ')
+                cb.writecl(';; --- Check Condition for _elseif_%i_%i --- ;;' % (if_c, elseif_c))
+                cb.write_buffer('\n    ;; --- Jump to _elseif_%i_%i if True --- ;;' % (if_c, elseif_c))
+                cb.write_buffer('\n    pop eax\n')
+                cb.write_buffer('    mov ebx, 1\n')
+                cb.write_buffer('    cmp eax, ebx\n')
+                cb.write_buffer('    je _elseif_%i_%i\n' % (if_c, elseif_c))
+                elseif_c += 1
+                cblock = BlockType.ELSEIF
             elif operation.type == Keyword.WHILE:
                 assert False, 'TODO: Finish implementation'
                 assert len(operation.args) > 0, 'Error in tparser.py in `program_from_tokens` or tokenizer.py in `tokenize_src`'
@@ -168,15 +194,25 @@ def __com_program_win10(program: Program, outfile: str, compile: bool=True) -> U
                 cb.write_buffer('.while ')
                 blocks.append(BlockType.WHILE)
             elif operation.type == Keyword.DO:
-                cb.writecl('pop bp')
                 cb.dump_buffer()
-                cb.write_no_indent('bp == 1\n')
+                block_body = ''
+                if len(operation.args) > 0:
+                    assert isinstance(operation.args[0], Operation), 'Error in tparser.py in `program_from_tokens`'
+                    block_body, _ = generate_main_code_body(operation.args)
+                if cblock == BlockType.IF:
+                    cb.write_buffer('\n_if_%i:\n' % if_c, 1)
+                elif cblock == BlockType.ELSEIF:
+                    cb.write_buffer('\n_elseif_%i_%i:\n' % (if_c, elseif_c - 1), 1)
+                else:
+                    assert False, 'impossible'
+                cb.write_buffer(block_body, 1)
+                cb.write_buffer('\n    ;; --- Jump Out of the IF-ELSEIF-ELSE Statement --- ;;', 1)
+                cb.write_buffer('\n    jmp _end_%i\n' % if_c, 1)
             elif operation.type == Keyword.END:
-                block_type = blocks.pop()
-                if block_type == BlockType.WHILE:
-                    cond_body, _ = generate_main_code_body(while_cond, 0)
-                    cb.writel(cond_body)
-                cb.writel('\n    .end%s ' % _BLOCK_TYPE_CONVERSION[block_type])
+                cb.dump_buffer(1)
+                cb.writel('\n_end_%i:' % if_c)
+                if_c += 1
+                # assert False, 'TODO: Finish implementation'
 
             elif operation.type == Intrinsic.PLUS:
                 cb.writecl(';; --- PLUS --- ;;')
@@ -231,7 +267,7 @@ def __com_program_win10(program: Program, outfile: str, compile: bool=True) -> U
                 cb.writel('pop eax')
                 cb.writel('pop ebx')
                 cb.writel('cmp ebx, eax')
-                cb.writel('cmovg ecx, edx')
+                cb.writel('cmovl ecx, edx')
                 cb.writel('push ecx')
             elif operation.type == Intrinsic.GREATER:
                 cb.writecl(';; --- GREATER --- ;;')
@@ -240,7 +276,7 @@ def __com_program_win10(program: Program, outfile: str, compile: bool=True) -> U
                 cb.writel('pop eax')
                 cb.writel('pop ebx')
                 cb.writel('cmp ebx, eax')
-                cb.writel('cmovl ecx, edx')
+                cb.writel('cmovg ecx, edx')
                 cb.writel('push ecx')
             elif operation.type == Intrinsic.DUP:
                 cb.writecl(';; --- DUP --- ;;')
@@ -252,9 +288,14 @@ def __com_program_win10(program: Program, outfile: str, compile: bool=True) -> U
                 cb.writel('pop eax')
             elif operation.type == Intrinsic.STORE: 
                 cb.writecl(';; --- STORE --- ;;')
-                cb.writel('pop eax') # value
-                cb.writel('pop ebx') # ref
+                cb.writel('pop eax') 
+                cb.writel('pop ebx') 
                 cb.writel('mov [ebx], eax')
+            elif operation.type == Intrinsic.READ:
+                cb.writecl(';; --- READ --- ;;')
+                cb.writel('pop eax')
+                cb.writel('mov ebx, [eax]')
+                cb.writel('push ebx')
             elif operation.type == Intrinsic.INC:
                 cb.writecl(';; --- INCREMENT --- ;;')
                 cb.writel('pop eax')
@@ -266,10 +307,8 @@ def __com_program_win10(program: Program, outfile: str, compile: bool=True) -> U
                 cb.writel('dec eax')
                 cb.writel('push eax')
 
+        ifc_global = if_c
         return (cb.code_body, strs)
-
-    # '\n;; --- Create Array [%s] With Length %s ---;;'
-    # '\n;; --- Create [%s] With Value %s ---;;' % (var.name, str(var.value))
     
     cb: CodeBody = CodeBody()
     strs: list[bytes] = []

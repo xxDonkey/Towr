@@ -25,7 +25,7 @@ def program_from_tokens(tokens: list[Token]) -> Program:
 
         assert len(OperationType) == 3 + _OPERATION_TYPE_NO_STATEMENTS, 'Unhandled members of `OperationType`'
         assert len(Keyword) == 11, 'Unhandled members of `Keyword`'
-        assert len(Intrinsic) == 14, 'Unhandled members of `Intrinsic`'
+        assert len(Intrinsic) == 15, 'Unhandled members of `Intrinsic`'
 
         if (ctoken.type == OperationType.PUSH_INT or
             ctoken.type == OperationType.PUSH_BOOL):
@@ -108,10 +108,18 @@ def program_from_tokens(tokens: list[Token]) -> Program:
                 operand=0
             ))
         elif ctoken.type == Keyword.ELSE:
+            end_str: str = KEYWORDS_INV[Keyword.END]
+            if not end_str in rtoken_strs:
+                compiler_error(ctoken.location, '`ELSE` statement never closed', __file__)
+            eidx = rtoken_strs.index(end_str)
+            rtokens = rtokens[:eidx]
+            program = program_from_tokens(rtokens)
             operations.append(Operation(
                 type=Keyword.ELSE,
-                operand=0
+                operand=0,
+                args=program.operations
             ))
+            adv = len(rtokens) + 1
         elif ctoken.type == Keyword.ELSEIF:
             do_str: str = KEYWORDS_INV[Keyword.DO]
             if do_str not in rtoken_strs:
@@ -135,12 +143,27 @@ def program_from_tokens(tokens: list[Token]) -> Program:
             end_str: str = KEYWORDS_INV[Keyword.END]
             else_str: str = KEYWORDS_INV[Keyword.ELSE]
             elseif_str: str = KEYWORDS_INV[Keyword.ELSEIF]
-            if end_str not in rtoken_strs and else_str not in rtoken_strs and elseif_str not in rtoken_strs:
+            if not end_str in rtoken_strs and not else_str in rtoken_strs and not elseif_str in rtoken_strs:
                 compiler_error(ctoken.location, '`IF` statement never closed', __file__)
+            eidx = 0
+            try:
+                eidx = rtoken_strs.index(elseif_str)
+            except ValueError:
+                try:
+                    eidx = rtoken_strs.index(else_str)
+                except ValueError:
+                    try:
+                        eidx = rtoken_strs.index(end_str)
+                    except ValueError:
+                        pass
+            rtokens = rtokens[:eidx]
+            program = program_from_tokens(rtokens)
             operations.append(Operation(
                 type=Keyword.DO,
-                operand=0
+                operand=0,
+                args=program.operations
             ))
+            adv = len(rtokens) + 1
         elif ctoken.type == Keyword.IMPORT:
             ntoken = rtokens.pop(0)
             if not IS_STR(ntoken.value):
