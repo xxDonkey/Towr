@@ -243,8 +243,7 @@ def __com_program_win10(program: Program, outfile: str, compile: bool=True, debu
             elif operation.type == Intrinsic.PRINT:
                 cb.writecl(';; --- PRINT --- ;;')
                 cb.writel('pop eax')
-                cb.writel('printf("%i", eax)')
-                cb.writel('print addr newline')
+                cb.writel('printf("%i\n", eax)')
             elif operation.type == Intrinsic.SWAP:
                 cb.writecl(';; --- SWAP --- ;;')
                 cb.writel('pop eax')
@@ -352,7 +351,6 @@ def __com_program_win10(program: Program, outfile: str, compile: bool=True, debu
     data_str += '\n.data'
     data_str += '\n\n;; --- Default Program Data --- ;;'
     data_str += '\nstacksize dword 0'
-    data_str += '\nnewline db " ", 10, 0'
     data_str += '\n\n;; --- String Literal Data --- ;;'
     for i, Str in enumerate(strs):
         data_str += '\nstr_%i db "%s"' % (i, Str.decode('utf-8'))
