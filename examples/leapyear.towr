@@ -1,0 +1,26 @@
+let year 2173 end
+let div4 0 end
+let div100 0 end
+let div400 0 end
+
+4 year / 
+&div4 ~ =
+drop
+
+100 year / 
+&div100 ~ =
+drop
+
+400 year / 
+&div400 ~ =
+drop
+
+if 
+    div4 0 == 1 div100 0 > + 2 ==
+    div100 0 == div400 0 == + 2 == 
+    + 0 > 
+do
+    1 ^
+else
+    2 ^
+end
