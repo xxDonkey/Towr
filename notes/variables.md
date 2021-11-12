@@ -16,7 +16,7 @@ x               # returns 8
 &x              # returns a memory address
 ```
 
-## 1. `letmem`
+## 2. `letmem`
 
 Similarly to `let`, this keyword assigns memory. However, instead of allocating a static 1 byte it allocates a number of bytes equivalent to the value passed to it. This allows for the creation of arrays and more complex datastructres.
 
