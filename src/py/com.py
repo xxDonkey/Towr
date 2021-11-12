@@ -67,6 +67,9 @@ def com_program(program: Program, outfile: str) -> None:
     assert initialized, '`initialize` must be called to use com.py'
     __com_program_win10_x86(program, outfile)
 
+# asm code, new strs
+_CodeRet = Tuple[str, list[bytes]]
+
 def __com_program_win10_x86(program: Program, outfile: str, compile: bool=True, debug_output:bool=False) -> Union[str, None]:
     assert len(OperationType) == 9, 'Unhandled members of `OperationType`'
     assert len(Keyword) == 8 + _UNUSED_KEYWORDS, 'Unhandled members of `Keyword`'
@@ -80,30 +83,34 @@ def __com_program_win10_x86(program: Program, outfile: str, compile: bool=True, 
             for op in program.operations:
                 f.write('%s\n' % op.__str__())
 
-    global ifblock_c_global
-    ifblock_c_global = 0
+    global ifblock_c
+    ifblock_c = 0
 
-    global wblock_c_global
-    wblock_c_global = 0
+    global wblock_c
+    wblock_c = 0
 
-    global iota_global
-    iota_global = 0
+    global iota
+    iota = 0
     
     vars: list[Variable] = []
 
-    def generate_main_code_body(operations: list[Operation], indent:int=1) -> Tuple[str, list[bytes]]:
-        global ifblock_c_global
-        global wblock_c_global
-        global iota_global
+    def generate_code_segment(operations: list[Operation], 
+                              depth_map: dict[int, int],
+                              block_depth: int=0,
+                              existing_strs: list[bytes]=[],
+                              indent:int=1
+    ) -> _CodeRet:
+        global ifblock_c
+        global wblock_c
+        global iota
+
         cb = CodeBody()
         cb.indent = indent
-        strs: list[bytes] = []
-        while_cond: list[Operation] = []
-        ifblock_c = ifblock_c_global
-        wblock_c = wblock_c_global
-        iota = iota_global
+        strs: list[bytes] = existing_strs
         elseif_c: int = 0
         cblock: BlockType = BlockType.NONE
+        while_cond: list[Operation] = []
+
         for operation in operations:
             if cblock == BlockType.WHILE:
                 while_cond.append(operation)
@@ -208,17 +215,23 @@ def __com_program_win10_x86(program: Program, outfile: str, compile: bool=True, 
                 cb.write_buffer('    cmp eax, ebx\n')
                 cb.write_buffer('    je _if_%i\n' % ifblock_c)
                 cblock = BlockType.IF
+                depth_map[block_depth] = ifblock_c
+                block_depth += 1
+                ifblock_c += 1
             elif operation.type == Keyword.ELSE:
                 cb.code_body = cb.code_body.replace(
-                    ';; --- Otherwise Jump to _enidf_%i --- ;;' % ifblock_c,
-                    ';; --- Otherwise Jump to _else_%i --- ;;' % ifblock_c, 1
+                    ';; --- Otherwise Jump to _endif_%i --- ;;' % depth_map[block_depth - 1],
+                    ';; --- Otherwise Jump to _else_%i --- ;;' % depth_map[block_depth - 1], 1
                 )
-                cb.buffer[1] = cb.buffer[1].replace('jmp _endif_%i' % ifblock_c, 'jmp _else_%i' % ifblock_c, 1)
+                cb.buffer[1] = cb.buffer[1].replace('jmp _endif_%i' % depth_map[block_depth - 1], 'jmp _else_%i' % depth_map[block_depth - 1], 1)
                 cb.write_buffer('\n_else_%i:\n' % ifblock_c, 1)
                 block_body = ''
                 if len(operation.args) > 0:
                     assert isinstance(operation.args[0], Operation), 'Error in tparser.py in `program_from_tokens`'
-                    block_body, _strs = generate_main_code_body(operation.args)
+                    block_body, _strs = condition_body, _strs = generate_code_segment(while_cond[:-1], depth_map, 
+                        block_depth=block_depth, 
+                        existing_strs=existing_strs
+                    )
                     strs += _strs
                 cb.write_buffer(block_body, 1)
                 cblock = BlockType.ELSE
@@ -239,51 +252,61 @@ def __com_program_win10_x86(program: Program, outfile: str, compile: bool=True, 
                 cb.write_buffer('    cmp eax, ebx\n')
                 cb.write_buffer('    je _while_%i\n' % wblock_c)
                 cblock = BlockType.WHILE
+                wblock_c += 1
             elif operation.type == Keyword.DO:
                 cb.dump_buffer()
                 block_body = ''
                 end_suffix = 'if'
                 if len(operation.args) > 0:
                     assert isinstance(operation.args[0], Operation), 'Error in tparser.py in `program_from_tokens`'
-                    block_body, _strs = generate_main_code_body(operation.args)
+                    block_body, _strs = generate_code_segment(operation.args, depth_map, 
+                        block_depth=block_depth, 
+                        existing_strs=existing_strs
+                    )
                     strs += _strs
                 if cblock == BlockType.IF:
-                    cb.writecl(';; --- Otherwise Jump to _enidf_%i --- ;;' % ifblock_c)
-                    cb.write_buffer('jmp _endif_%i\n' % ifblock_c, 1)
-                    cb.write_buffer('\n_if_%i:\n' % ifblock_c, 1)
+                    cb.writecl(';; --- Otherwise Jump to _endif_%i --- ;;' % depth_map[block_depth - 1])
+                    cb.write_buffer('jmp _endif_%i\n' % depth_map[block_depth - 1], 1)
+                    cb.write_buffer('\n_if_%i: ; depth: %i\n' % (depth_map[block_depth - 1] , block_depth), 1)
                     cb.write_buffer(block_body, 1)
                 elif cblock == BlockType.ELSEIF:
-                    cb.write_buffer('\n_elseif_%i_%i:\n' % (ifblock_c, elseif_c - 1), 1)
+                    cb.write_buffer('\n_elseif_%i_%i:\n' % (depth_map[block_depth - 1], elseif_c - 1), 1)
                     cb.write_buffer(block_body, 1)
-                elif cblock == BlockType.WHILE:
-                    cb.write_buffer('\n_while_%i:\n' % ifblock_c, 1)
-                    cb.write_buffer(block_body, 1)
-                    condition_body, _strs = generate_main_code_body(while_cond[:-1])
-                    strs += _strs
-                    cb.write_buffer(condition_body, 1)
-                    cb.write_buffer('\n    ;; --- Jump to _while_%i if True --- ;;'% ifblock_c, 1)
-                    cb.write_buffer('\n    pop eax\n', 1)
-                    cb.write_buffer('    mov ebx, 1\n', 1)
-                    cb.write_buffer('    cmp eax, ebx\n', 1)
-                    cb.write_buffer('    je _while_%i\n' % ifblock_c, 1)
-                    end_suffix = 'w'
                 else:
                     assert False, 'impossible'
                 cb.write_buffer('\n    ;; --- Jump Out of the IF-ELSEIF-ELSE Statement --- ;;', 1)
-                cb.write_buffer('\n    jmp _end%s_%i\n' % (end_suffix, ifblock_c), 1)
+                cb.write_buffer('\n    jmp _end%s_%i\n' % (end_suffix, depth_map[block_depth - 1]), 1)
+            elif operation.type == Keyword.THEN:
+                cb.write_buffer('\n_while_%i:\n' % wblock_c, 1)
+                block_body, _strs = generate_code_segment(operation.args, depth_map, 
+                    block_depth=block_depth, 
+                    existing_strs=existing_strs
+                )
+                strs += _strs
+                cb.write_buffer(block_body, 1)
+                condition_body, _strs = generate_code_segment(while_cond[:-1], depth_map, 
+                    block_depth=block_depth, 
+                    existing_strs=existing_strs
+                )
+                strs += _strs
+                cb.write_buffer(condition_body, 1)
+                cb.write_buffer('\n    ;; --- Jump to _while_%i if True --- ;;'% ifblock_c, 1)
+                cb.write_buffer('\n    pop eax\n', 1)
+                cb.write_buffer('    mov ebx, 1\n', 1)
+                cb.write_buffer('    cmp eax, ebx\n', 1)
+                cb.write_buffer('    je _while_%i\n' % ifblock_c, 1)
+                end_suffix = 'w'
+            
             elif operation.type == Keyword.END:
                 cb.dump_buffer(1)
                 if cblock == BlockType.WHILE:
                     cb.writel('\n_endw_%i:' % wblock_c)
-                    wblock_c += 1
                 elif cblock != BlockType.NONE:
-                    cb.writel('\n_endif_%i:' % wblock_c)
-                    ifblock_c += 1
+                    cb.writel('\n_endif_%i:' % depth_map[block_depth - 1])
                 else:
                     assert False, 'impossible'
-               
                 elseif_c = 0
-                # assert False, 'TODO: Finish implementation'
+                block_depth -= 1
             elif operation.type == Keyword.COUNTER:
                 cb.writecl(';; --- Push INT from Internal Counter [%i] ---;;' % iota)
                 cb.writel('mov eax, %i' % iota)
@@ -294,7 +317,6 @@ def __com_program_win10_x86(program: Program, outfile: str, compile: bool=True, 
                 cb.writel('mov eax, %i' % iota)
                 cb.writel('push eax')
                 iota = 0
-                iota_global = 0
 
             elif operation.type == Intrinsic.PLUS:
                 cb.writecl(';; --- PLUS --- ;;')
@@ -422,15 +444,12 @@ def __com_program_win10_x86(program: Program, outfile: str, compile: bool=True, 
                 cb.write('pop eax')
                 cb.write('not eax')
                 cb.write('push eax')
-                
-
-        ifblock_c_global = ifblock_c
-        wblock_c_global = wblock_c
-        iota_global = iota
+            
         return (cb.code_body, strs)
     
     cb: CodeBody = CodeBody()
     strs: list[bytes] = []
+    depth_map: dict[int, int] = {}
     
     cb.writel(';; Necessary initialization statements ;;')
     cb.writel('.686')
@@ -456,13 +475,19 @@ def __com_program_win10_x86(program: Program, outfile: str, compile: bool=True, 
         cb.write('\n')
     for func in program.funcs:
         cb.writel('%s proc %s' % (func.name, ', '.join(f'{param}:dword' for param in func.params)))
-        func_body, _strs = generate_main_code_body(func.operations)
+        func_body, _strs = generate_code_segment(func.operations, depth_map, 
+            block_depth=1, 
+            existing_strs=strs
+        )
         strs += _strs
         cb.writel(func_body)
         cb.writel('%s endp' % func.name)
     
     cb.writel('\nstart:')
-    main_body, _strs = generate_main_code_body(program.operations)
+    main_body, _strs = generate_code_segment(program.operations, depth_map, 
+        block_depth=0, 
+        existing_strs=strs
+    )
     cb.writel(main_body)
     strs += _strs
     data_str: str = ''

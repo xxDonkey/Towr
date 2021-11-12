@@ -1,0 +1,8 @@
+let n 10 end
+let i 0 end
+
+while i n < do
+    i ^
+
+    &i i ++ =
+end
