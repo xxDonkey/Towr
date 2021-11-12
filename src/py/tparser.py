@@ -24,7 +24,7 @@ def program_from_tokens(tokens: list[Token], start_vars: list[Variable]=[]) -> P
         adv: int = 1
     
         assert len(OperationType) == 3 + _OPERATION_TYPE_NO_STATEMENTS, 'Unhandled members of `OperationType`'
-        assert len(Keyword) == 13, 'Unhandled members of `Keyword`'
+        assert len(Keyword) == 14, 'Unhandled members of `Keyword`'
         assert len(Intrinsic) == 22, 'Unhandled members of `Intrinsic`'
 
         if (ctoken.type == OperationType.PUSH_INT or
@@ -99,9 +99,9 @@ def program_from_tokens(tokens: list[Token], start_vars: list[Variable]=[]) -> P
             ))
             adv = len(rtokens) + 2
         elif ctoken.type == Keyword.IF:
-            do_str: str = KEYWORDS_INV[Keyword.DO]
-            if do_str not in rtoken_strs:
-                compiler_error(ctoken.location, '`IF` statement expects `DO` statement', __file__)
+            then_str: str = KEYWORDS_INV[Keyword.THEN]
+            if then_str not in rtoken_strs:
+                compiler_error(ctoken.location, '`IF` statement expects `THEN` statement', __file__)
             operations.append(Operation(
                 type=Keyword.IF,
                 operand=0
@@ -120,9 +120,9 @@ def program_from_tokens(tokens: list[Token], start_vars: list[Variable]=[]) -> P
             ))
             adv = len(rtokens) + 1
         elif ctoken.type == Keyword.ELSEIF:
-            do_str: str = KEYWORDS_INV[Keyword.DO]
-            if do_str not in rtoken_strs:
-                compiler_error(ctoken.location, '`ELSEIF` statement expects `DO` statement', __file__)
+            then_str: str = KEYWORDS_INV[Keyword.THEN]
+            if then_str not in rtoken_strs:
+                compiler_error(ctoken.location, '`ELSEIF` statement expects `THEN` statement', __file__)
             operations.append(Operation(
                 type=Keyword.ELSEIF,
                 operand=0
@@ -136,6 +136,27 @@ def program_from_tokens(tokens: list[Token], start_vars: list[Variable]=[]) -> P
                 operand=0
             ))
         elif ctoken.type == Keyword.DO:
+            end_str: str = KEYWORDS_INV[Keyword.END]
+            if not end_str in rtoken_strs:
+                compiler_error(ctoken.location, '`WHILE` statement never closed', __file__)
+            depth: int = 0
+            i: int = 0
+            for i, token in enumerate(rtokens):
+                if token.type == Keyword.LET or token.type == Keyword.IF or token.type == Keyword.WHILE:
+                    depth += 1
+                elif token.type == Keyword.END or token.type == Keyword.ELSEIF or token.type == Keyword.ELSE:
+                    depth -= 1
+                if depth < 0:
+                    break
+            rtokens = rtokens[:i]
+            program = program_from_tokens(rtokens)
+            operations.append(Operation(
+                type=Keyword.DO,
+                operand=0,
+                args=program.operations
+            ))
+            adv = len(rtokens) + 1
+        elif ctoken.type == Keyword.THEN:
             end_str: str = KEYWORDS_INV[Keyword.END]
             else_str: str = KEYWORDS_INV[Keyword.ELSE]
             elseif_str: str = KEYWORDS_INV[Keyword.ELSEIF]
@@ -153,7 +174,7 @@ def program_from_tokens(tokens: list[Token], start_vars: list[Variable]=[]) -> P
             rtokens = rtokens[:i]
             program = program_from_tokens(rtokens)
             operations.append(Operation(
-                type=Keyword.DO,
+                type=Keyword.THEN,
                 operand=0,
                 args=program.operations
             ))

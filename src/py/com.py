@@ -55,7 +55,7 @@ class CodeBody:
         self.code_body += '\n' + self.__get_indent() + code + '\n'
 
     def write_buffer(self, code: str, i: int=0) -> None:
-        if len(self.buffer) <= i:
+        while len(self.buffer) <= i:
             self.buffer.append('')
         self.buffer[i] += code 
 
@@ -72,7 +72,7 @@ _CodeRet = Tuple[str, list[bytes]]
 
 def __com_program_win10_x86(program: Program, outfile: str, compile: bool=True, debug_output:bool=False) -> Union[str, None]:
     assert len(OperationType) == 9, 'Unhandled members of `OperationType`'
-    assert len(Keyword) == 8 + _UNUSED_KEYWORDS, 'Unhandled members of `Keyword`'
+    assert len(Keyword) == 9 + _UNUSED_KEYWORDS, 'Unhandled members of `Keyword`'
     assert len(Intrinsic) == 22, 'Unhandled members of `Intrinsic`'
     
     debug_output = True
@@ -246,17 +246,41 @@ def __com_program_win10_x86(program: Program, outfile: str, compile: bool=True, 
                 cblock = BlockType.ELSEIF
             elif operation.type == Keyword.WHILE:
                 cb.writecl(';; --- Check Condition for _while_%i --- ;;' % wblock_c)
-                cb.write_buffer('\n    ;; --- Jump to _while_%i if True --- ;;'% wblock_c)
-                cb.write_buffer('\n    pop eax\n')
-                cb.write_buffer('    mov ebx, 1\n')
-                cb.write_buffer('    cmp eax, ebx\n')
-                cb.write_buffer('    je _while_%i\n' % wblock_c)
+                # TODO: figure this out
+                cb.write_buffer('\n    ;; --- Jump to _while_%i if True --- ;;' % wblock_c, 1)
+                cb.write_buffer('\n    pop eax\n', 1)
+                cb.write_buffer('    mov ebx, 1\n', 1)
+                cb.write_buffer('    cmp eax, ebx\n', 1)
+                cb.write_buffer('    je _while_%i\n' % wblock_c, 1)
+                cb.write_buffer('\n    ;; --- Otherwise Jump to _endw_%i if True --- ;;' % wblock_c, 1)
+                cb.write_buffer('\n    jmp _endw_%i\n' % wblock_c, 1)
                 cblock = BlockType.WHILE
+                depth_map[block_depth] = ifblock_c
+                block_depth += 1
                 wblock_c += 1
             elif operation.type == Keyword.DO:
+                print('---------\n%s\n-------' % depth_map)
+                cb.write_buffer('\n_while_%i:\n' % depth_map[block_depth - 1], 1)
+                block_body, _strs = generate_code_segment(operation.args, depth_map, 
+                    block_depth=block_depth, 
+                    existing_strs=existing_strs
+                )
+                strs += _strs
+                cb.write_buffer(block_body, 1)
+                condition_body, _strs = generate_code_segment(while_cond[:-1], depth_map, 
+                    block_depth=block_depth, 
+                    existing_strs=existing_strs
+                )
+                strs += _strs
+                cb.write_buffer(condition_body, 1)
+                cb.write_buffer('\n    ;; --- Jump to _while_%i if True --- ;;'% depth_map[block_depth - 1], 1)
+                cb.write_buffer('\n    pop eax\n', 1)
+                cb.write_buffer('    mov ebx, 1\n', 1)
+                cb.write_buffer('    cmp eax, ebx\n', 1)
+                cb.write_buffer('    je _while_%i\n' % depth_map[block_depth - 1], 1)
+            elif operation.type == Keyword.THEN:
                 cb.dump_buffer()
                 block_body = ''
-                end_suffix = 'if'
                 if len(operation.args) > 0:
                     assert isinstance(operation.args[0], Operation), 'Error in tparser.py in `program_from_tokens`'
                     block_body, _strs = generate_code_segment(operation.args, depth_map, 
@@ -275,32 +299,12 @@ def __com_program_win10_x86(program: Program, outfile: str, compile: bool=True, 
                 else:
                     assert False, 'impossible'
                 cb.write_buffer('\n    ;; --- Jump Out of the IF-ELSEIF-ELSE Statement --- ;;', 1)
-                cb.write_buffer('\n    jmp _end%s_%i\n' % (end_suffix, depth_map[block_depth - 1]), 1)
-            elif operation.type == Keyword.THEN:
-                cb.write_buffer('\n_while_%i:\n' % wblock_c, 1)
-                block_body, _strs = generate_code_segment(operation.args, depth_map, 
-                    block_depth=block_depth, 
-                    existing_strs=existing_strs
-                )
-                strs += _strs
-                cb.write_buffer(block_body, 1)
-                condition_body, _strs = generate_code_segment(while_cond[:-1], depth_map, 
-                    block_depth=block_depth, 
-                    existing_strs=existing_strs
-                )
-                strs += _strs
-                cb.write_buffer(condition_body, 1)
-                cb.write_buffer('\n    ;; --- Jump to _while_%i if True --- ;;'% ifblock_c, 1)
-                cb.write_buffer('\n    pop eax\n', 1)
-                cb.write_buffer('    mov ebx, 1\n', 1)
-                cb.write_buffer('    cmp eax, ebx\n', 1)
-                cb.write_buffer('    je _while_%i\n' % ifblock_c, 1)
-                end_suffix = 'w'
+                cb.write_buffer('\n    jmp _endif_%i\n' % depth_map[block_depth - 1], 1)
             
             elif operation.type == Keyword.END:
                 cb.dump_buffer(1)
                 if cblock == BlockType.WHILE:
-                    cb.writel('\n_endw_%i:' % wblock_c)
+                    cb.writel('\n_endw_%i:' % depth_map[block_depth - 1])
                 elif cblock != BlockType.NONE:
                     cb.writel('\n_endif_%i:' % depth_map[block_depth - 1])
                 else:
