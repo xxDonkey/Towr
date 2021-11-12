@@ -48,6 +48,7 @@ class Keyword(Enum):
     ELSEIF      = auto()
     WHILE       = auto()
     DO          = auto()
+    THEN        = auto()
     END         = auto()
     IMPORT      = auto()
     PARAMS      = auto()
@@ -145,6 +146,7 @@ KEYWORDS: dict[str, Keyword] = {
     'elseif': Keyword.ELSEIF,
     'while' : Keyword.WHILE,
     'do'    : Keyword.DO,
+    'then'  : Keyword.THEN,
     'func'  : Keyword.FUNC,
     'end'   : Keyword.END,
     'import': Keyword.IMPORT,
