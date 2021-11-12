@@ -165,3 +165,46 @@ pop a
 a -= 1
 push a
 ```
+
+***
+
+### AND [ `&&` ]
+
+Takes the top 2 values on the stack and performs a bitwise AND operation (for each bit, 1 if both are 1, otherwise 0).
+```
+pop a
+pop b
+push a AND b
+```
+
+***
+
+### OR [ `||` ]
+
+Takes the top 2 values on the stack and performs a bitwise OR operation (for each bit, 1 if either are 1, otherwise 0).
+```
+pop a
+pop b
+push a OR b
+```
+
+***
+
+### XOR [ `^^` ]
+
+Takes the top 2 values on the stack and performs a bitwise XOR operation (for each bit, 1 if exactly 1 is 1, otherwise 0).
+```
+pop a
+pop b
+push a XOR b
+```
+
+***
+
+### NOT [ `!` ]
+
+Performs a bitwise NOT operator on the top value on the stack (inverts all bits).
+```
+pop a
+push NOT a
+```
