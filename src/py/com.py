@@ -290,7 +290,7 @@ def __com_program_win10_x86(program: Program, outfile: str, compile: bool=True, 
                 cb.writel('push eax')
                 iota += 1
             elif operation.type == Keyword.RESET:
-                cb.writecl(';; --- Push INT from Internal Counter [%i] ---;;' % iota)
+                cb.writecl(';; --- Push INT from Internal Counter, Also Resets [%i] ---;;' % iota)
                 cb.writel('mov eax, %i' % iota)
                 cb.writel('push eax')
                 iota = 0
