@@ -70,7 +70,7 @@ def com_program(program: Program, outfile: str) -> None:
 def __com_program_win10_x86(program: Program, outfile: str, compile: bool=True, debug_output:bool=False) -> Union[str, None]:
     assert len(OperationType) == 9, 'Unhandled members of `OperationType`'
     assert len(Keyword) == 8 + _UNUSED_KEYWORDS, 'Unhandled members of `Keyword`'
-    assert len(Intrinsic) == 18, 'Unhandled members of `Intrinsic`'
+    assert len(Intrinsic) == 22, 'Unhandled members of `Intrinsic`'
     
     debug_output = True
     # compile = False
@@ -399,6 +399,29 @@ def __com_program_win10_x86(program: Program, outfile: str, compile: bool=True, 
                 cb.writecl(';; --- Push Byte Size [%i] ---;;' % size)
                 cb.writel('mov eax, %i' % size)
                 cb.writel('push eax')
+            elif operation.type == Intrinsic.AND:
+                cb.writecl(';; --- AND -- ;;')
+                cb.write('pop eax')
+                cb.write('pop ebx')
+                cb.write('and eax, ebx')
+                cb.write('push eax')
+            elif operation.type == Intrinsic.OR:
+                cb.writecl(';; --- OR -- ;;')
+                cb.write('pop eax')
+                cb.write('pop ebx')
+                cb.write('or eax, ebx')
+                cb.write('push eax')
+            elif operation.type == Intrinsic.XOR:
+                cb.writecl(';; --- XOR -- ;;')
+                cb.write('pop eax')
+                cb.write('pop ebx')
+                cb.write('xor eax, ebx')
+                cb.write('push eax')
+            elif operation.type == Intrinsic.NOT:
+                cb.writecl(';; --- NOT -- ;;')
+                cb.write('pop eax')
+                cb.write('not eax')
+                cb.write('push eax')
                 
 
         ifblock_c_global = ifblock_c

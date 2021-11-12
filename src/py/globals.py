@@ -73,6 +73,10 @@ class Intrinsic(Enum):
     STDOUT      = auto()
     STDERR      = auto()
     BYTE        = auto()
+    AND         = auto()
+    OR          = auto()
+    XOR         = auto()
+    NOT         = auto()
 
 class DataType(Enum):
     INT         = auto()
@@ -170,6 +174,10 @@ INTRINSICS: dict[str, Intrinsic] = {
     'stdout': Intrinsic.STDOUT,
     'stderr': Intrinsic.STDERR,
     'sizeof_byte': Intrinsic.BYTE,
+    '&&'    : Intrinsic.AND,
+    '||'    : Intrinsic.OR,
+    '^^'    : Intrinsic.XOR,
+    '!'     : Intrinsic.NOT,
 }
 assert len(INTRINSICS) == len(Intrinsic), 'Unassigned intrinsics'
 
