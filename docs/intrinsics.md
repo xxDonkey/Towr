@@ -2,7 +2,7 @@
 
 The operators are inherent to the language. They take values of the stack and pushes resultant values back. They can also not take values from the stack, and only push. Similarly, there are operators that only push values to the stack. 
 
-### Plus [ `+` ]
+### PLUS [ `+` ]
 
 Takes the top 2 values on the stack and pushes the sum.
 ```
