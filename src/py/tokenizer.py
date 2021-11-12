@@ -3,8 +3,7 @@ from globals import *
 
 def token_from_src(token: str, 
                    line: int, col: int, 
-                   filename: str,
-                   in_let: bool=False) -> Token:
+                   filename: str) -> Token:
     operation_type: Union[OperationType, None] = None
     keyword: Union[Keyword, None] = None
     intrinsic: Union[Intrinsic, None] = None
@@ -53,29 +52,49 @@ def tokenize_src(file: TowrFile) -> list[Token]:
     filename: str = file.filename
     tokens: list[Token] = []
 
-    # TODO: improve iteration and token generation
-    line, col = 0, -1
-    prev_token: Token = Token.default_token()
-    curr_token: str = ''
-    for c in code_body:
-        col += 1
-        if (is_newline := c == '\n') or c == ' ':
-            if is_newline:
-                line += 1
-                col = 0
-            
-            if curr_token:
-                token = token_from_src(curr_token, line, col, filename, in_let=(prev_token.type == Keyword.LET))
-                tokens.append(token)
-                prev_token = token
-                curr_token = ''
+    endswith_newline = code_body.endswith('\n')
+    endswith_space = code_body.endswith(' ')
+    if not endswith_newline and not endswith_space :
+        compiler_error((filename, 1, 1), 'Space or newline requireed at EOF', __file__)
 
-            continue
-        curr_token += c
+    # TODO: improve iteration and token generation
+    line, col = 1, 1
+    ctoken: str = ''
+    in_str: bool = False
+    in_comment: bool = False
+
+    for ch in code_body:
+        newline: bool = (ch == '\n')
+        space: bool = (ch == ' ')
+        comment: bool = (ch == COMMENT)
+        start_str: bool = ch.startswith('"')
+        end_str: bool = ch.startswith('"')
+
+        if comment:
+            in_comment = True
+
+        if start_str:
+            in_str = True
         
-    if curr_token:
-        token = token_from_src(curr_token, line, col, filename)
-        tokens.append(token)
+        if end_str:
+            end_str = True
+        
+        if (not newline and not space and not in_comment) or (not newline and in_str):
+            ctoken += ch
+        
+        if newline:
+            if ctoken:
+                tokens.append(token_from_src(ctoken, line, col, filename))
+                ctoken = ''
+            line += 1
+            col = 1
+            in_comment = False
+        elif space and not in_str:
+            if ctoken:
+                tokens.append(token_from_src(ctoken, line, col, filename))
+                ctoken = ''
+            col += 1
+        else:
+            col += 1
 
     return tokens
-
