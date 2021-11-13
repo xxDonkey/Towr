@@ -7,6 +7,8 @@ A stack based language inspired by [Porth](https://github.com/tsoding/porth), an
 - [x] Native
 - [x] Compiled
 - [x] Stack-based 
-- [ ] Self-hosted (compiler written in itself)
+- [ ] Turing Complete ([Rule 110](https://en.wikipedia.org/wiki/Rule_110))
+- [ ] Self hosted (compiler written in itself)
+- [ ] Cross platform
 
 
