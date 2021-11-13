@@ -1,11 +1,15 @@
 let n 100 end
-let isquared 0 end
+let isquared 1 end
 let i 1 end
 
+# performs this loop until !(isquared < n)
 while isquared n < do
-    &isquared i i * =
+    # print the current square
     isquared ^
 
+    # i = i + 1
     &i i ++ =
+
+    # isquared = i * i
     &isquared i i * =
 end
