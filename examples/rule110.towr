@@ -1,0 +1,51 @@
+# 0 0
+# 0 0
+
+let len 2 end
+let size len len * end
+letmem grid size end
+
+let i 0 end
+let x 0 end
+let y 0 end
+
+let cell 0 end
+let lNeighbor 0 end
+let rNeighbor 0 end
+
+while i size < do
+    len i / 
+    &x ~ =
+    &y ~ =
+
+    # reference to current x,y value
+    # set entry equal to 0
+    grid sizeof_byte x * + 
+    sizeof_byte len * y * + 1 ==
+    
+    if x 0 > then
+        &lNeighbor
+        grid sizeof_byte x * + 
+        sizeof_byte len * y * + 
+        @ =
+    end
+
+    if x len -- < then
+        &rNeighbor
+        grid sizeof_byte x * + 
+        sizeof_byte len * y * + 
+        @ =
+    end
+
+    rNeighbor ^
+
+    grid sizeof_byte x * + 
+    sizeof_byte len * y * +
+     
+    i # set value
+    
+    =
+    
+    &i i ++ =
+end
+
