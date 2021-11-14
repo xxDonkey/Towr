@@ -87,7 +87,4 @@ def tokenize_src(file: TowrFile) -> list[Token]:
         else:
             col += 1
 
-    for token in tokens:
-        print('\t %s --' % token)
-
     return tokens
