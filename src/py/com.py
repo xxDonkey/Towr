@@ -246,7 +246,6 @@ def __com_program_win10_x86(program: Program, outfile: str, compile: bool=True, 
                 cblock = BlockType.ELSEIF
             elif operation.type == Keyword.WHILE:
                 cb.writecl(';; --- Check Condition for _while_%i --- ;;' % wblock_c)
-                # TODO: figure this out
                 cb.write_buffer('\n    ;; --- Jump to _while_%i if True --- ;;' % wblock_c, 1)
                 cb.write_buffer('\n    pop eax\n', 1)
                 cb.write_buffer('    mov ebx, 1\n', 1)
@@ -255,11 +254,10 @@ def __com_program_win10_x86(program: Program, outfile: str, compile: bool=True, 
                 cb.write_buffer('\n    ;; --- Otherwise Jump to _endw_%i if True --- ;;' % wblock_c, 1)
                 cb.write_buffer('\n    jmp _endw_%i\n' % wblock_c, 1)
                 cblock = BlockType.WHILE
-                depth_map[block_depth] = ifblock_c
+                depth_map[block_depth] = wblock_c
                 block_depth += 1
                 wblock_c += 1
             elif operation.type == Keyword.DO:
-                print('---------\n%s\n-------' % depth_map)
                 cb.write_buffer('\n_while_%i:\n' % depth_map[block_depth - 1], 1)
                 block_body, _strs = generate_code_segment(operation.args, depth_map, 
                     block_depth=block_depth, 
@@ -302,6 +300,7 @@ def __com_program_win10_x86(program: Program, outfile: str, compile: bool=True, 
                 cb.write_buffer('\n    jmp _endif_%i\n' % depth_map[block_depth - 1], 1)
             
             elif operation.type == Keyword.END:
+                while_cond.clear()
                 cb.dump_buffer(1)
                 if cblock == BlockType.WHILE:
                     cb.writel('\n_endw_%i:' % depth_map[block_depth - 1])
