@@ -37,7 +37,6 @@ class OperationType(Enum):
     FUNC_CALL           = auto()
     WRITE_STACK_SIZE    = auto()
     PUSH_STACK_SIZE     = auto()
-    RETURN              = auto()
 
 class Keyword(Enum):
     LET         = auto()
@@ -52,8 +51,11 @@ class Keyword(Enum):
     END         = auto()
     IMPORT      = auto()
     PARAMS      = auto()
+    PARAMSPLIT  = auto()
     COUNTER     = auto()
     RESET       = auto()
+    RETURN      = auto()
+    RETURNNONE  = auto()
 
 class Intrinsic(Enum):
     PLUS        = auto()
@@ -113,6 +115,7 @@ class Operation:
 class Func:
     name: str
     params: list[str]
+    rets: list[str]
     operations: list[Operation]
     vars: list[Variable]
     location: Location
@@ -151,8 +154,11 @@ KEYWORDS: dict[str, Keyword] = {
     'end'   : Keyword.END,
     'import': Keyword.IMPORT,
     'params': Keyword.PARAMS,
+    '::'    : Keyword.PARAMSPLIT,
     'iota'  : Keyword.COUNTER,
     'rst'   : Keyword.RESET,
+    'ret'   : Keyword.RETURN,
+    'retnone': Keyword.RETURNNONE,
 }
 KEYWORDS_INV: dict[Keyword, str] = {v: k for k, v in KEYWORDS.items()}
 assert len(KEYWORDS) == len(Keyword), 'Unassigned keywords'
