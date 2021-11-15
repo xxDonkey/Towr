@@ -57,17 +57,13 @@ def tokenize_src(file: TowrFile) -> list[Token]:
         newline: bool = (ch == '\n')
         space: bool = (ch == ' ')
         comment: bool = (ch == COMMENT)
-        start_str: bool = ch.startswith('"')
-        end_str: bool = ch.endswith('"')
+        is_str: bool = (ch == '"')
 
         if comment:
             in_comment = True
 
-        if start_str:
-            in_str = True
-        
-        if end_str:
-            end_str = True
+        if is_str:
+            in_str = not in_str
         
         if (not newline and not space and not in_comment) or (not newline and in_str):
             ctoken += ch
