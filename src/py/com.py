@@ -89,9 +89,6 @@ def __com_program_win10_x86(program: Program, outfile: str, compile: bool=True, 
     global wblock_c
     wblock_c = 0
 
-    global iota
-    iota = 0
-    
     vars: list[Variable] = []
 
     def generate_code_segment(operations: list[Operation], 
@@ -102,7 +99,6 @@ def __com_program_win10_x86(program: Program, outfile: str, compile: bool=True, 
     ) -> _CodeRet:
         global ifblock_c
         global wblock_c
-        global iota
 
         cb = CodeBody()
         cb.indent = indent
@@ -224,11 +220,11 @@ def __com_program_win10_x86(program: Program, outfile: str, compile: bool=True, 
                     ';; --- Otherwise Jump to _else_%i --- ;;' % depth_map[block_depth - 1], 1
                 )
                 cb.buffer[1] = cb.buffer[1].replace('jmp _endif_%i' % depth_map[block_depth - 1], 'jmp _else_%i' % depth_map[block_depth - 1], 1)
-                cb.write_buffer('\n_else_%i:\n' % ifblock_c, 1)
+                cb.write_buffer('\n_else_%i:\n' % depth_map[block_depth - 1], 1)
                 block_body = ''
                 if len(operation.args) > 0:
                     assert isinstance(operation.args[0], Operation), 'Error in tparser.py in `program_from_tokens`'
-                    block_body, _strs = condition_body, _strs = generate_code_segment(while_cond[:-1], depth_map, 
+                    block_body, _strs = condition_body, _strs = generate_code_segment(operation.args, depth_map, 
                         block_depth=block_depth, 
                         existing_strs=existing_strs
                     )
@@ -236,12 +232,12 @@ def __com_program_win10_x86(program: Program, outfile: str, compile: bool=True, 
                 cb.write_buffer(block_body, 1)
                 cblock = BlockType.ELSE
             elif operation.type == Keyword.ELSEIF:
-                cb.writecl(';; --- Check Condition for _elseif_%i_%i --- ;;' % (ifblock_c, elseif_c))
-                cb.write_buffer('\n    ;; --- Jump to _elseif_%i_%i if True --- ;;' % (ifblock_c, elseif_c))
+                cb.writecl(';; --- Check Condition for _elseif_%i_%i --- ;;' % (depth_map[block_depth - 1], elseif_c))
+                cb.write_buffer('\n    ;; --- Jump to _elseif_%i_%i if True --- ;;' % (depth_map[block_depth - 1], elseif_c))
                 cb.write_buffer('\n    pop eax\n')
                 cb.write_buffer('    mov ebx, 1\n')
                 cb.write_buffer('    cmp eax, ebx\n')
-                cb.write_buffer('    je _elseif_%i_%i\n' % (ifblock_c, elseif_c))
+                cb.write_buffer('    je _elseif_%i_%i\n' % (depth_map[block_depth - 1], elseif_c))
                 elseif_c += 1
                 cblock = BlockType.ELSEIF
             elif operation.type == Keyword.WHILE:
@@ -287,8 +283,8 @@ def __com_program_win10_x86(program: Program, outfile: str, compile: bool=True, 
                     )
                     strs += _strs
                 if cblock == BlockType.IF:
-                    cb.writecl(';; --- Otherwise Jump to _endif_%i --- ;;' % depth_map[block_depth - 1])
-                    cb.write_buffer('jmp _endif_%i\n' % depth_map[block_depth - 1], 1)
+                    cb.write_buffer('\n    ;; --- Otherwise Jump to _endif_%i --- ;;' % depth_map[block_depth - 1], 1)
+                    cb.write_buffer('\n    jmp _endif_%i\n' % depth_map[block_depth - 1], 1)
                     cb.write_buffer('\n_if_%i: ; depth: %i\n' % (depth_map[block_depth - 1] , block_depth), 1)
                     cb.write_buffer(block_body, 1)
                 elif cblock == BlockType.ELSEIF:
@@ -311,15 +307,15 @@ def __com_program_win10_x86(program: Program, outfile: str, compile: bool=True, 
                 elseif_c = 0
                 block_depth -= 1
             elif operation.type == Keyword.COUNTER:
-                cb.writecl(';; --- Push INT from Internal Counter [%i] ---;;' % iota)
-                cb.writel('mov eax, %i' % iota)
+                assert isinstance(operation.operand, int), 'Error in tparser.py in `program_from_tokens`'
+                cb.writecl(';; --- Push INT from Internal Counter [%i] ---;;' % operation.operand)
+                cb.writel('mov eax, %i' % operation.operand)
                 cb.writel('push eax')
-                iota += 1
             elif operation.type == Keyword.RESET:
-                cb.writecl(';; --- Push INT from Internal Counter, Also Resets [%i] ---;;' % iota)
-                cb.writel('mov eax, %i' % iota)
+                assert isinstance(operation.operand, int), 'Error in tparser.py in `program_from_tokens`'
+                cb.writecl(';; --- Push INT from Internal Counter, Also Resets [%i] ---;;' % operation.operand)
+                cb.writel('mov eax, %i' % operation.operand)
                 cb.writel('push eax')
-                iota = 0
 
             elif operation.type == Intrinsic.PLUS:
                 cb.writecl(';; --- PLUS --- ;;')
@@ -426,27 +422,27 @@ def __com_program_win10_x86(program: Program, outfile: str, compile: bool=True, 
                 cb.writel('push eax')
             elif operation.type == Intrinsic.AND:
                 cb.writecl(';; --- AND -- ;;')
-                cb.write('pop eax')
-                cb.write('pop ebx')
-                cb.write('and eax, ebx')
-                cb.write('push eax')
+                cb.writel('pop eax')
+                cb.writel('pop ebx')
+                cb.writel('and eax, ebx')
+                cb.writel('push eax')
             elif operation.type == Intrinsic.OR:
                 cb.writecl(';; --- OR -- ;;')
-                cb.write('pop eax')
-                cb.write('pop ebx')
-                cb.write('or eax, ebx')
-                cb.write('push eax')
+                cb.writel('pop eax')
+                cb.writel('pop ebx')
+                cb.writel('or eax, ebx')
+                cb.writel('push eax')
             elif operation.type == Intrinsic.XOR:
                 cb.writecl(';; --- XOR -- ;;')
-                cb.write('pop eax')
-                cb.write('pop ebx')
-                cb.write('xor eax, ebx')
-                cb.write('push eax')
+                cb.writel('pop eax')
+                cb.writel('pop ebx')
+                cb.writel('xor eax, ebx')
+                cb.writel('push eax')
             elif operation.type == Intrinsic.NOT:
                 cb.writecl(';; --- NOT -- ;;')
-                cb.write('pop eax')
-                cb.write('not eax')
-                cb.write('push eax')
+                cb.writel('pop eax')
+                cb.writel('not eax')
+                cb.writel('push eax')
             
         return (cb.code_body, strs)
     
