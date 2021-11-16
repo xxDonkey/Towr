@@ -118,5 +118,6 @@ test/
 *.asm
 *.obj
 *.exe
-out.txt
-tparser_dec.py
+*_funcs.txt
+*_ops.txt
+*_vars.txt
