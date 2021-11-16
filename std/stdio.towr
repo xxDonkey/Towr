@@ -1,4 +1,19 @@
+
 # Prints a string to StdOut
-func print str_len str_addr params
-    str_len str_addr stdout
+func sprint
+    addr len
+::
+params
+    len addr stdout
+    retnone
+end
+
+# Prints a string to StdOut ending with a newline character
+func sprintl
+    addr len
+::
+params
+    len addr stdout
+    "\n" stdout
+    retnone
 end
