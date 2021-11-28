@@ -20,12 +20,12 @@ def sim_tokens(tokens: list[Token], vars: list[Variable], iota: int) -> Tuple[St
     for token in tokens:
         if token.type == OperationType.PUSH_INT:
             stack.append(StackValue(
-                datatype=DataType.INT,
+                type=DataType.INT,
                 value=token.operand
             ))
         elif token.type == OperationType.PUSH_BOOL:
             stack.append(StackValue(
-                datatype=DataType.BOOL,
+                type=DataType.BOOL,
                 value=token.operand
             ))
         elif token.type == OperationType.PUSH_STR:
@@ -34,7 +34,7 @@ def sim_tokens(tokens: list[Token], vars: list[Variable], iota: int) -> Tuple[St
         elif token.type == Intrinsic.PLUS:
             a = stack.pop()
             b = stack.pop()
-            dt_key = (a.datatype, b.datatype)
+            dt_key = (a.type, b.type)
             if dt_key not in ARTHIMETIC_TYPE_CONVESTIONS:
                 assert False, 'Unhandled datatype arithmetic'
             dt = ARTHIMETIC_TYPE_CONVESTIONS[dt_key]
@@ -42,31 +42,31 @@ def sim_tokens(tokens: list[Token], vars: list[Variable], iota: int) -> Tuple[St
             if dt == DataType.BOOL:
                 value %= 2
             stack.append(StackValue(
-                datatype=dt,
+                type=dt,
                 value=value
             ))
         elif token.type == Intrinsic.MULTIPLY:
             a = stack.pop()
             b = stack.pop()
-            dt_key = (a.datatype, b.datatype)
+            dt_key = (a.type, b.type)
             if dt_key not in ARTHIMETIC_TYPE_CONVESTIONS:
                 assert False, 'Unhandled datatype arithmetic'
             dt = ARTHIMETIC_TYPE_CONVESTIONS[dt_key]
             value = a.value * b.value
             stack.append(StackValue(
-                datatype=dt,
+                type=dt,
                 value=value
             ))
 
         elif token.type == Keyword.COUNTER:
             stack.append(StackValue(
-                datatype=DataType.INT,
+                type=DataType.INT,
                 value=iota
             ))
             iota += 1
         elif token.type == Keyword.RESET:
             stack.append(StackValue(
-                datatype=DataType.INT,
+                type=DataType.INT,
                 value=iota
             ))
             iota = 0
@@ -74,7 +74,7 @@ def sim_tokens(tokens: list[Token], vars: list[Variable], iota: int) -> Tuple[St
         elif token.value in (var_strs := [var.name for var in vars]):
             var = vars[var_strs.index(token.value)]
             stack.append(StackValue(
-                datatype=DataType.INT,
+                type=DataType.INT,
                 value=var.value
             ))
 

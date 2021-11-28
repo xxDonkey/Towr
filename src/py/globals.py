@@ -85,7 +85,6 @@ class DataType(Enum):
     INT         = auto()
     BOOL        = auto()
     PTR         = auto()
-    LIST        = auto()
 
 @dataclass
 class Token:
@@ -101,9 +100,11 @@ class Token:
 
 @dataclass
 class Variable:
-    name: str
+    name : str
+    type : DataType
     value: int
-    malloc: bool = False
+
+    is_param: bool = False
     
 @dataclass
 class Operation:
@@ -115,7 +116,7 @@ class Operation:
 class Func:
     name: str
     params: list[str]
-    rets: list[str]
+    rets: bool
     operations: list[Operation]
     vars: list[Variable]
     location: Location
@@ -133,7 +134,7 @@ class Program:
 
 @dataclass
 class StackValue:
-    datatype: DataType
+    type: DataType
     value: int
 
 @dataclass

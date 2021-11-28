@@ -1,0 +1,9 @@
+import "std/stdio.towr"
+
+let i 0 end
+
+while i 2 < do
+    "Hello, World!" sprintl
+    &i i ++ =
+end
+

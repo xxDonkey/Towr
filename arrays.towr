@@ -1,0 +1,12 @@
+import "std/stdarr.towr"
+
+letmem arr 4 end
+let x 0 end
+
+
+while x 4 < do
+    arr x x * x writearr
+    &x x ++ =
+end
+
+arr 4 2 3 slicearr

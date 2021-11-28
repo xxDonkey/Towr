@@ -25,6 +25,12 @@ _BYTE_SIZE: dict[str, int] = {
     'win10,x86': 64,
 }
 
+_ESCAPE_TABLE: dict[int, int] = {
+    ord('t'): 9,
+    ord('n'): 10,
+    ord('r'): 13,
+}
+
 class BlockType(Enum):
     NONE    = auto()
     IF      = auto()
@@ -67,9 +73,6 @@ def com_program(program: Program, outfile: str) -> None:
     assert initialized, '`initialize` must be called to use com.py'
     __com_program_win10_x86(program, outfile)
 
-# asm code, new strs
-_CodeRet = Tuple[str, list[bytes]]
-
 def __com_program_win10_x86(program: Program, outfile: str, compile: bool=True, debug_output:bool=False) -> Union[str, None]:
     assert len(OperationType) == 8, 'Unhandled members of `OperationType`'
     assert len(Keyword) == 11 + _UNUSED_KEYWORDS, 'Unhandled members of `Keyword`'
@@ -77,11 +80,6 @@ def __com_program_win10_x86(program: Program, outfile: str, compile: bool=True, 
     
     debug_output = True
     # compile = False
-
-    if debug_output:
-        with open('out.txt', 'w') as f:
-            for op in program.operations:
-                f.write('%s\n' % op.__str__())
 
     global ifblock_c
     ifblock_c = 0
@@ -91,18 +89,34 @@ def __com_program_win10_x86(program: Program, outfile: str, compile: bool=True, 
 
     vars: list[Variable] = []
 
+    def escaped_repr(b_str: bytes) -> list[str]:
+        chs: list[str] = []
+        escaped: bool = False
+        for i, b in enumerate(b_str):
+            if escaped:
+                escaped = False
+                continue
+            if b != ord('\\'):
+                chs.append(str(b))
+                continue
+            assert i < len(b_str) - 1, 'Unfinished escape sequence'
+            esc_ch = b_str[i + 1]
+            chs.append(str(_ESCAPE_TABLE[esc_ch]))
+            escaped = True
+
+        return chs
+
     def generate_code_segment(operations: list[Operation], 
                               depth_map: dict[int, int],
                               block_depth: int=0,
-                              existing_strs: list[bytes]=[],
+                              strs: list[bytes]=[],
                               indent:int=1
-    ) -> _CodeRet:
+    ) -> str:
         global ifblock_c
         global wblock_c
 
         cb = CodeBody()
         cb.indent = indent
-        strs: list[bytes] = existing_strs
         elseif_c: int = 0
         cblock: BlockType = BlockType.NONE
         while_cond: list[Operation] = []
@@ -136,34 +150,43 @@ def __com_program_win10_x86(program: Program, outfile: str, compile: bool=True, 
                     strs.append(encoded)
             elif operation.type == OperationType.VAR_REF:
                 assert isinstance(operation.operand, str), 'Error in tparser.py in `program_from_tokens` or tokenizer.py in `tokenize_src`'
-                name, typ = operation.operand.split('/')
+                name, typ, func_param = operation.operand.split('/')
+                print(typ)
                 cb.writecl(';; --- Push Variable to Stack [%s] ---;;' % name)
-                if typ == 'val':
-                    cb.writel('mov eax, _%s' % name)
-                    cb.writel('mov edx, [eax]')
-                elif typ == 'ref':
-                    cb.writel('mov edx, _%s' % name)
+                if func_param == 'f':
+                    if typ == 'val':
+                        cb.writel('mov eax, _%s' % name)
+                        cb.writel('mov edx, [eax]')
+                    elif typ == 'ref':
+                        cb.writel('mov edx, _%s' % name)
+                    else:
+                        assert False, 'Error in tparser.py in `program_from_tokens` or tokenizer.py in `tokenize_src`'
+                    cb.writel('push edx')
                 else:
-                    assert False, 'Error in tparser.py in `program_from_tokens` or tokenizer.py in `tokenize_src`'
-                cb.writel('push edx')
+                    cb.writel('mov eax, _%s' % name)
+                    cb.writel('push eax')
             elif operation.type == OperationType.PUSH_VAR_REF:
                 assert isinstance(operation.operand, str), 'Error in tparser.py in `program_from_tokens` or tokenizer.py in `tokenize_src`'
-                name, typ = operation.operand.split('/')
+                name, typ, func_param = operation.operand.split('/')
                 cb.writecl(';; --- Push Variable Reference to Stack [%s] ---;;' % name)
-                if typ == 'val':
-                    cb.writel('mov eax, _%s' % name)
-                elif typ == 'ref':
-                    cb.writel('mov eax, offset _%s' % name)
+                if func_param == 'f':
+                    if typ == 'val':
+                        cb.writel('mov eax, _%s' % name)
+                    elif typ == 'ref':
+                        cb.writel('mov eax, offset _%s' % name)
+                    else:
+                        assert False, 'Error in tparser.py in `program_from_tokens` or tokenizer.py in `tokenize_src`'
+                    cb.writel('push eax')
                 else:
+                    # Cannot get reference of function parameter
                     assert False, 'Error in tparser.py in `program_from_tokens` or tokenizer.py in `tokenize_src`'
-                cb.writel('push eax')
             elif operation.type == OperationType.FUNC_CALL:
                 assert isinstance(operation.operand, int), 'Error in tparser.py in `program_from_tokens` or tokenizer.py in `tokenize_src`'
                 func: Func = program.funcs[operation.operand]
                 cb.writecl(';; --- Call Func [%s] ---;;' % func.name)
                 cb.writel('call _%s' % func.name)
-                if len(func.rets) > 0:
-                    cb.writecl(';; --- Push Return Value Onto Stack ---;;')
+                if func.rets:
+                    cb.writel(';; --- Push Return Value Onto Stack ---;;')
                     cb.writel('push eax')
             elif operation.type == OperationType.WRITE_STACK_SIZE:
                 cb.writecl(';; --- Write Stack Size to `stacksize` Variable ---;;')
@@ -189,7 +212,7 @@ def __com_program_win10_x86(program: Program, outfile: str, compile: bool=True, 
                 cb.writel('mov _%s, eax' % name)
                 cb.writel('mov ebx, %i' % value)
                 cb.writel('mov [eax], ebx')
-                vars.append(Variable(name=name, value=value, malloc=False))
+                vars.append(Variable(name=name, value=value, type=DataType.INT))
             elif operation.type == Keyword.LETMEM:
                 assert isinstance(operation.operand, str), 'Error in tparser.py in `program_from_tokens` or tokenizer.py in `tokenize_src`'
                 value, name = (operation.operand.split('/'))
@@ -200,7 +223,7 @@ def __com_program_win10_x86(program: Program, outfile: str, compile: bool=True, 
                 cb.writel('mov _%s, eax' % name)
                 cb.writel('mov ebx, 0')
                 cb.writel('mov [eax], ebx')
-                vars.append(Variable(name=name, value=value, malloc=True))
+                vars.append(Variable(name=name, value=value, type=DataType.INT))
             elif operation.type == Keyword.IF:
                 cb.writecl(';; --- Check Condition for _if_%i --- ;;' % ifblock_c)
                 cb.write_buffer('\n    ;; --- Jump to _if_%i if True --- ;;'% ifblock_c)
@@ -222,11 +245,10 @@ def __com_program_win10_x86(program: Program, outfile: str, compile: bool=True, 
                 block_body = ''
                 if len(operation.args) > 0:
                     assert isinstance(operation.args[0], Operation), 'Error in tparser.py in `program_from_tokens`'
-                    block_body, _strs = condition_body, _strs = generate_code_segment(operation.args, depth_map, 
+                    block_body = generate_code_segment(operation.args, depth_map, 
                         block_depth=block_depth, 
-                        existing_strs=existing_strs
+                        strs=strs
                     )
-                    strs += _strs
                 cb.write_buffer(block_body, 1)
                 cblock = BlockType.ELSE
             elif operation.type == Keyword.ELSEIF:
@@ -253,17 +275,15 @@ def __com_program_win10_x86(program: Program, outfile: str, compile: bool=True, 
                 wblock_c += 1
             elif operation.type == Keyword.DO:
                 cb.write_buffer('\n_while_%i:\n' % depth_map[block_depth - 1], 1)
-                block_body, _strs = generate_code_segment(operation.args, depth_map, 
+                block_body = generate_code_segment(operation.args, depth_map, 
                     block_depth=block_depth, 
-                    existing_strs=existing_strs
+                    strs=strs
                 )
-                strs += _strs
                 cb.write_buffer(block_body, 1)
-                condition_body, _strs = generate_code_segment(while_cond[:-1], depth_map, 
+                condition_body = generate_code_segment(while_cond[:-1], depth_map, 
                     block_depth=block_depth, 
-                    existing_strs=existing_strs
+                    strs=strs
                 )
-                strs += _strs
                 cb.write_buffer(condition_body, 1)
                 cb.write_buffer('\n    ;; --- Jump to _while_%i if True --- ;;'% depth_map[block_depth - 1], 1)
                 cb.write_buffer('\n    pop eax\n', 1)
@@ -275,11 +295,10 @@ def __com_program_win10_x86(program: Program, outfile: str, compile: bool=True, 
                 block_body = ''
                 if len(operation.args) > 0:
                     assert isinstance(operation.args[0], Operation), 'Error in tparser.py in `program_from_tokens`'
-                    block_body, _strs = generate_code_segment(operation.args, depth_map, 
+                    block_body = generate_code_segment(operation.args, depth_map, 
                         block_depth=block_depth, 
-                        existing_strs=existing_strs
+                        strs=strs
                     )
-                    strs += _strs
                 if cblock == BlockType.IF:
                     cb.write_buffer('\n    ;; --- Otherwise Jump to _endif_%i --- ;;' % depth_map[block_depth - 1], 1)
                     cb.write_buffer('\n    jmp _endif_%i\n' % depth_map[block_depth - 1], 1)
@@ -421,7 +440,7 @@ def __com_program_win10_x86(program: Program, outfile: str, compile: bool=True, 
                 cb.writecl(';; --- Prints From Top of Stack to StdOut --- ;;')
                 cb.writel('pop eax')
                 cb.writel('invoke StdOut, eax')
-                cb.writel('push eax')
+                cb.writel('pop eax')
             elif operation.type == Intrinsic.STDERR:
                 assert False, 'STDERR'
             elif operation.type == Intrinsic.BYTE:
@@ -453,7 +472,7 @@ def __com_program_win10_x86(program: Program, outfile: str, compile: bool=True, 
                 cb.writel('not eax')
                 cb.writel('push eax')
             
-        return (cb.code_body, strs)
+        return cb.code_body
     
     cb: CodeBody = CodeBody()
     strs: list[bytes] = []
@@ -477,27 +496,24 @@ def __com_program_win10_x86(program: Program, outfile: str, compile: bool=True, 
 
     cb.writel('\n;; --- Code Body ---;;')
     cb.writel('.code')
-
-    # TODO: returns
-    if len(program.funcs):
-        cb.write('\n')
+     
     for func in program.funcs:
+        cb.write('\n')
         cb.writel('_%s proc %s' % (func.name, ', '.join(f'_{param}: dword' for param in func.params)))
-        func_body, _strs = generate_code_segment(func.operations, depth_map, 
+        func_body = generate_code_segment(func.operations, depth_map, 
             block_depth=1, 
-            existing_strs=strs
+            strs=strs
         )
-        strs += _strs
         cb.writel(func_body)
         cb.writel('_%s endp' % func.name)
     
+    
     cb.writel('\nstart:')
-    main_body, _strs = generate_code_segment(program.operations, depth_map, 
+    main_body = generate_code_segment(program.operations, depth_map, 
         block_depth=0, 
-        existing_strs=strs
+        strs=strs
     )
     cb.writel(main_body)
-    strs += _strs
     data_str: str = ''
     data_str += '\n;; --- Data Declarations --- ;;'
     data_str += '\n.data'
@@ -505,7 +521,7 @@ def __com_program_win10_x86(program: Program, outfile: str, compile: bool=True, 
     data_str += '\nstacksize dword 0'
     data_str += '\n\n;; --- String Literal Data --- ;;'
     for i, Str in enumerate(strs):
-        data_str += '\nstr_%i db "%s", 0' % (i, Str.decode('utf-8'))
+        data_str += '\nstr_%i db %s' % (i, ', '.join(escaped_repr(Str)))
     data_str += '\n\n;; --- Uninitialized Data Declarations --- ;;'
     data_str += '\n.data?'
     data_str += '\n\n;; --- Variable Data --- ;;'
@@ -518,6 +534,17 @@ def __com_program_win10_x86(program: Program, outfile: str, compile: bool=True, 
     cb.writel('invoke ExitProcess, 0')
     cb.writel('end start')
     cb.writel('end')
+
+    if debug_output:
+        with open(f'{outfile}_ops.txt', 'w') as f:
+            for op in program.operations:
+                f.write('%s\n' % op.__str__())
+        with open(f'{outfile}_vars.txt', 'w') as f:
+            for var in vars:
+                f.write('%s\n' % var.__str__())
+        with open(f'{outfile}_funcs.txt', 'w') as f:
+            for func in program.funcs:
+                f.write('%s\n' % func.__str__())
 
     if compile:
         with open(os.path.join(os.getcwd(), f'{outfile}.asm'), 'w') as out:

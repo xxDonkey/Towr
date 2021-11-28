@@ -17,7 +17,7 @@ def is_closed(closing: list[Keyword], tokens: list[Token]) -> Tuple[bool, int]:
     idx = 0
     for i, token in enumerate(tokens):
         match token.type:
-            case Keyword.IF | Keyword.WHILE | Keyword.LET:
+            case Keyword.IF | Keyword.WHILE | Keyword.LET | Keyword.LETMEM:
                 depth += 1
             case kw if kw in closing:
                 depth -= 1
@@ -27,11 +27,10 @@ def is_closed(closing: list[Keyword], tokens: list[Token]) -> Tuple[bool, int]:
             break
     return (is_closed, idx)
 
-def program_from_tokens(tokens: list[Token], start_vars: list[Variable]=[]) -> Program:
+def program_from_tokens(tokens: list[Token], vars: list[Variable], funcs: list[Func]) -> Program:
     operations: list[Operation] = []
-    vars: list[Variable]        = start_vars
-    funcs: list[Func]           = []
     iota: int = 0
+    mallocd: int = 0
     tp: int = 0
     while tp < len(tokens):
         ctoken = tokens[tp]
@@ -45,10 +44,10 @@ def program_from_tokens(tokens: list[Token], start_vars: list[Variable]=[]) -> P
 
         match ctoken:
             # OperationType Handler
-            case Token(OperationType.PUSH_STR, _, Str, _, _):
+            case Token(OperationType.PUSH_STR, _, operand, _, _):
                 operations.append(Operation(
                     type=OperationType.PUSH_STR,
-                    operand=Str
+                    operand=operand
                 ))
             case Token(_type, operand, _, _, _) if isinstance(_type, OperationType):
                 operations.append(Operation(
@@ -64,7 +63,7 @@ def program_from_tokens(tokens: list[Token], start_vars: list[Variable]=[]) -> P
                 ))
 
             # Keyword Handler
-            case Token(Keyword.LET | Keyword.LETMEM, _, _, loc, _):
+            case Token((Keyword.LET | Keyword.LETMEM) as _type, _, _, loc, _):
                 end = KEYWORDS_INV[Keyword.END]
                 closed, _ = is_closed([Keyword.END], rtokens)
                 if not closed:
@@ -73,20 +72,28 @@ def program_from_tokens(tokens: list[Token], start_vars: list[Variable]=[]) -> P
                 rtokens = rtokens[:end_index]
                 ntoken = rtokens.pop(0)
                 CHECK_ASSIGNMENT(ntoken)
-                value, new_iota = sim_tokens(rtokens, vars, iota)
+                sim_result = sim_tokens(rtokens, vars, iota)
+                value, new_iota = sim_result
                 iota = new_iota
-                vars.append(Variable(name=ntoken.value, value=value.value, malloc=(ctoken.type == Keyword.LETMEM)))
+                letmem: bool = (_type == Keyword.LETMEM)
+                print(value.type)
+                vars.append(Variable(
+                    name=ntoken.value,
+                    type=(DataType.PTR if letmem else value.type),
+                    value=(mallocd if letmem else value.value),
+                    is_param=False
+                ))
                 operations.append(Operation(
-                    type=Keyword(ctoken.type),
+                    type=_type,
                     operand='%i/%s' % (value.value, ntoken.value)
                 ))            
                 adv = len(rtokens) + 3
-            case Token(Keyword.COUNTER | Keyword.RESET, _, _, _, _):
+            case Token((Keyword.COUNTER | Keyword.RESET) as _type, _, _, _, _):
                 operations.append(Operation(
                     type=Keyword(ctoken.type),
                     operand=iota
                 ))
-                iota += 1 if (ctoken.type == Keyword.COUNTER) else -iota
+                iota += 1 if (_type == Keyword.COUNTER) else -iota
             case Token(Keyword.IF, _, _, loc, _):
                 closed, _ = is_closed([Keyword.THEN], rtokens)
                 if not closed:
@@ -108,7 +115,7 @@ def program_from_tokens(tokens: list[Token], start_vars: list[Variable]=[]) -> P
                 if not closed:
                     compiler_error(loc, '`ELSE` statement never closed', __file__)
                 rtokens = rtokens[:idx]
-                program = program_from_tokens(rtokens)
+                program = program_from_tokens(rtokens, vars, funcs)
                 operations.append(Operation(
                     type=Keyword.ELSE,
                     operand=0,
@@ -120,7 +127,7 @@ def program_from_tokens(tokens: list[Token], start_vars: list[Variable]=[]) -> P
                 if not closed:
                     compiler_error(loc, '`IF` statement never closed', __file__)
                 rtokens = rtokens[:idx]
-                program = program_from_tokens(rtokens)
+                program = program_from_tokens(rtokens, vars, funcs)
                 operations.append(Operation(
                     type=Keyword.THEN,
                     operand=0,
@@ -140,7 +147,7 @@ def program_from_tokens(tokens: list[Token], start_vars: list[Variable]=[]) -> P
                 if not closed:
                     compiler_error(loc, '`WHILE` statement never closed', __file__)
                 rtokens = rtokens[:idx]
-                program = program_from_tokens(rtokens)
+                program = program_from_tokens(rtokens, vars, funcs)
                 operations.append(Operation(
                     type=Keyword.DO,
                     operand=0,
@@ -167,12 +174,11 @@ def program_from_tokens(tokens: list[Token], start_vars: list[Variable]=[]) -> P
                     code_body=code_body,
                     filename=import_path
                 ))
-                program = program_from_tokens(imported_tokens)
+                program = program_from_tokens(imported_tokens, vars, funcs)
                 operations += program.operations
-                vars += program.vars
-                funcs += program.funcs
                 adv = 2
             case Token(Keyword.FUNC, _, _, loc, _):
+                assert False, 'Not implemented'
                 closed, idx = is_closed([Keyword.PARAMS], rtokens)
                 if not closed:
                     compiler_error(loc, '`FUNC` statement expects `PARAMS`', __file__)
@@ -183,54 +189,53 @@ def program_from_tokens(tokens: list[Token], start_vars: list[Variable]=[]) -> P
                 ntoken = rtokens.pop(0)
                 CHECK_ASSIGNMENT(ntoken)
                 expect = rtokens[:idx - 1]
-                ret = rtokens[idx:]
+                rets = rtokens[idx:]
                 funcs.append(Func(
                     name=ntoken.value,
                     params=[t.value for t in expect],
-                    rets=[t.value for t in ret],
+                    rets=len(rets) > 0,
                     operations=[],
                     vars=[],
                     location=loc
                 ))
+                vars += [Variable(token.value, 0, func_param=True) for token in expect] 
                 adv = len(rtokens) + 2
             case Token(Keyword.PARAMS, _, _, loc, _):
                 closed, idx = is_closed([Keyword.END], rtokens)
                 if not closed:
                     compiler_error(loc, '`FUNC` statement never closed', __file__)
                 btokens: list[Token] = rtokens[:idx]
-                fprogram = program_from_tokens(btokens)
+                fprogram = program_from_tokens(btokens, vars, funcs)
                 funcs[-1].operations = fprogram.operations
-                ret = False
-                match funcs[-1].operations[-1]:
-                    case Operation(Keyword.RETURN, _, _):
-                        ret = True
                 funcs[-1].vars = fprogram.vars
                 adv = len(btokens) + 2
             case Token(Keyword.PARAMSPLIT, _, _, _, _):
                 # Should never be reached, only used as a delimiter in `FUNC` block
                 assert False, 'Error in tparser.py in `program_from_tokens` or tokenizer.py in `tokenize_src`'
-            case Token(Keyword.RETURN | Keyword.RETURNNONE, _, _, _, _):
+            case Token((Keyword.RETURN | Keyword.RETURNNONE) as _type, _, _, _, _):
                 operations.append(Operation(
-                    type=Keyword(ctoken.type),
+                    type=_type,
                     operand=0
                 ))
 
             # Variables
             case Token(None, _, _, _, value) if value in (var_strs := [var.name for var in vars]):
                 var: Variable = vars[var_strs.index(ctoken.value)]
-                _type = 'ref' if var.malloc else 'val'
+                _type = 'ref' if var.type == DataType.PTR else 'val'
+                is_param: str = 't' if var.is_param else 'f'
                 operations.append(Operation(
                     type=OperationType.VAR_REF,
-                    operand='%s/%s' % (var.name, _type)
+                    operand='%s/%s/%s' % (var.name, _type, is_param)
                 ))
 
             # Variable References
             case Token(None, _, _, _, value) if value.startswith('&') and (val := ctoken.value[1:]) in (var_strs := [var.name for var in vars]):
                 var: Variable = vars[var_strs.index(val)]
-                _type = 'ref' if var.malloc else 'val'
+                _type = 'ref' if var.type == DataType.PTR else 'val'
+                is_param: str = 't' if var.is_param else 'f'
                 operations.append(Operation(
                     type=OperationType.PUSH_VAR_REF,
-                    operand='%s/%s' % (var.name, _type)
+                    operand='%s/%s/%s' % (var.name, _type, is_param)
                 ))
 
             # Function Call
