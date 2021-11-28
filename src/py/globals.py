@@ -37,7 +37,6 @@ class OperationType(Enum):
     FUNC_CALL           = auto()
     WRITE_STACK_SIZE    = auto()
     PUSH_STACK_SIZE     = auto()
-    RETURN              = auto()
 
 class Keyword(Enum):
     LET         = auto()
@@ -52,8 +51,11 @@ class Keyword(Enum):
     END         = auto()
     IMPORT      = auto()
     PARAMS      = auto()
+    PARAMSPLIT  = auto()
     COUNTER     = auto()
     RESET       = auto()
+    RETURN      = auto()
+    RETURNNONE  = auto()
 
 class Intrinsic(Enum):
     PLUS        = auto()
@@ -83,7 +85,6 @@ class DataType(Enum):
     INT         = auto()
     BOOL        = auto()
     PTR         = auto()
-    LIST        = auto()
 
 @dataclass
 class Token:
@@ -99,9 +100,11 @@ class Token:
 
 @dataclass
 class Variable:
-    name: str
+    name : str
+    type : DataType
     value: int
-    malloc: bool = False
+
+    is_param: bool = False
     
 @dataclass
 class Operation:
@@ -109,10 +112,25 @@ class Operation:
     operand: Union[int, str]
     args: list[Any] = field(default_factory=list)
 
+    def to_str(self, depth: int=1):
+        args: str = ''
+        for arg in self.args:
+            str_repr: str = arg.__str__() if not isinstance(arg, Operation) else arg.to_str(depth + 1)
+            print('-------')
+            print(depth, str_repr)
+            print('-------')
+            args += '%s%s\n' % (('\t' * depth), str_repr)
+        if args:
+            args = '\n%s\n' % args
+        return 'Operation(type=%s, operand=%s, args=[%s])' % (
+            str(self.type), str(self.operand), args
+        )
+
 @dataclass
 class Func:
     name: str
     params: list[str]
+    rets: bool
     operations: list[Operation]
     vars: list[Variable]
     location: Location
@@ -130,7 +148,7 @@ class Program:
 
 @dataclass
 class StackValue:
-    datatype: DataType
+    type: DataType
     value: int
 
 @dataclass
@@ -151,8 +169,11 @@ KEYWORDS: dict[str, Keyword] = {
     'end'   : Keyword.END,
     'import': Keyword.IMPORT,
     'params': Keyword.PARAMS,
+    '::'    : Keyword.PARAMSPLIT,
     'iota'  : Keyword.COUNTER,
     'rst'   : Keyword.RESET,
+    'ret'   : Keyword.RETURN,
+    'retnone': Keyword.RETURNNONE,
 }
 KEYWORDS_INV: dict[Keyword, str] = {v: k for k, v in KEYWORDS.items()}
 assert len(KEYWORDS) == len(Keyword), 'Unassigned keywords'

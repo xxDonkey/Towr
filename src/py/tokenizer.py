@@ -4,46 +4,36 @@ from globals import *
 def token_from_src(token: str, 
                    line: int, col: int, 
                    filename: str) -> Token:
-    operation_type: Union[OperationType, None] = None
-    keyword: Union[Keyword, None] = None
-    intrinsic: Union[Intrinsic, None] = None
+    _type: Union[OperationType, Keyword, Intrinsic, None] = None
     operand: int = 0
     str_operand: str = ''
+    location = (filename, line, col)
 
-    if token in KEYWORDS:
-        keyword = KEYWORDS[token]
+    match list(token):
+        case [*chs] if (Str := ''.join(chs)) in KEYWORDS:
+            _type = KEYWORDS[Str]
 
-    elif token in INTRINSICS:
-        intrinsic = INTRINSICS[token]
-    
-    elif IS_INT(token):
-        operation_type = OperationType.PUSH_INT
-        operand = int(token)
+        case [*chs] if (Str := ''.join(chs)) in INTRINSICS:
+            _type = INTRINSICS[Str]
 
-    elif IS_BOOL(token):
-        operation_type = OperationType.PUSH_BOOL
-        bool_digit = int(token[:len(token) - 1])
-        if not (-1 < bool_digit < 2):
-            compiler_error((filename, line, col), 'Datatype `BOOL` cannot have a value other than 0 or 1', __file__)
-        operand = bool_digit
+        case ['-', *chs] | [*chs] if IS_INT(''.join(chs)):
+            _type = OperationType.PUSH_INT
+            operand = int(token)
 
-    elif IS_STR(token):
-        operation_type = OperationType.PUSH_STR
-        str_operand = token[1:-1]
+        # not used right now, will be with more types for memory saving
+        case [val, 'b'] if val.isdigit() and 0 <= (val_int := int(val)) <= 1:
+            _type = OperationType.PUSH_BOOL
+            operand = val_int
 
-    else:
-        operation_type = None
-
-    types = [t for t in [operation_type, keyword, intrinsic] if t != None]
-    type = None
-    if len(types) > 0:
-        type = types[0]
+        case ['"', *chs, '"']:
+            _type = OperationType.PUSH_STR
+            str_operand = ''.join(chs)
 
     return Token(
-        type=type,
+        type=_type,
         operand=operand,
         str_operand=str_operand,
-        location=(filename, line, col),
+        location=location,
         value=token
     )
 
@@ -67,17 +57,13 @@ def tokenize_src(file: TowrFile) -> list[Token]:
         newline: bool = (ch == '\n')
         space: bool = (ch == ' ')
         comment: bool = (ch == COMMENT)
-        start_str: bool = ch.startswith('"')
-        end_str: bool = ch.startswith('"')
+        is_str: bool = (ch == '"')
 
         if comment:
             in_comment = True
 
-        if start_str:
-            in_str = True
-        
-        if end_str:
-            end_str = True
+        if is_str:
+            in_str = not in_str
         
         if (not newline and not space and not in_comment) or (not newline and in_str):
             ctoken += ch

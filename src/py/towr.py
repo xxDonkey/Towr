@@ -31,11 +31,13 @@ def main() -> None:
         code_body = file.read()
 
     tokens = tokenize_src(TowrFile(code_body, filename))
-    program = program_from_tokens(tokens)
+    program = program_from_tokens(tokens, [], [])
+
+
 
     subcommand = sys.argv[1]
     if subcommand == 'sim':
-        print(program)
+        assert False, 'no sim 4 u'
     elif subcommand == 'com':
         intiialize(STACK_LIMIT)
         com_program(program, filename.split('.')[0])
