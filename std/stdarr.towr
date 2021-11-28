@@ -1,0 +1,28 @@
+func writearr
+    idx val array
+::
+    none
+params
+    array sizeof_byte idx * + val =
+    retnone
+end
+
+func getarr
+    idx array
+::
+    val
+params
+    array sizeof_byte idx * + @
+    ret
+end
+
+func slicearr
+    idx2 idx1 length array
+::
+    new_array_reference
+params
+    let i 0 end
+    &i idx1 =
+    
+    retnone
+end
