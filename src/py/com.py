@@ -151,7 +151,6 @@ def __com_program_win10_x86(program: Program, outfile: str, compile: bool=True, 
             elif operation.type == OperationType.VAR_REF:
                 assert isinstance(operation.operand, str), 'Error in tparser.py in `program_from_tokens` or tokenizer.py in `tokenize_src`'
                 name, typ, func_param = operation.operand.split('/')
-                print(typ)
                 cb.writecl(';; --- Push Variable to Stack [%s] ---;;' % name)
                 if func_param == 'f':
                     if typ == 'val':
@@ -538,7 +537,7 @@ def __com_program_win10_x86(program: Program, outfile: str, compile: bool=True, 
     if debug_output:
         with open(f'{outfile}_ops.txt', 'w') as f:
             for op in program.operations:
-                f.write('%s\n' % op.__str__())
+                f.write('%s\n' % op.to_str())
         with open(f'{outfile}_vars.txt', 'w') as f:
             for var in vars:
                 f.write('%s\n' % var.__str__())

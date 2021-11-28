@@ -112,6 +112,20 @@ class Operation:
     operand: Union[int, str]
     args: list[Any] = field(default_factory=list)
 
+    def to_str(self, depth: int=1):
+        args: str = ''
+        for arg in self.args:
+            str_repr: str = arg.__str__() if not isinstance(arg, Operation) else arg.to_str(depth + 1)
+            print('-------')
+            print(depth, str_repr)
+            print('-------')
+            args += '%s%s\n' % (('\t' * depth), str_repr)
+        if args:
+            args = '\n%s\n' % args
+        return 'Operation(type=%s, operand=%s, args=[%s])' % (
+            str(self.type), str(self.operand), args
+        )
+
 @dataclass
 class Func:
     name: str
